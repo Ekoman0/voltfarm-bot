@@ -97,13 +97,12 @@
             box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
             transition: 0.3s; width: 100%;
         }
-        .btn-claim:active { transform: scale(0.95); }
 
         .heat-container { width: 100%; height: 8px; background: #0f172a; border-radius: 10px; margin-top: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
         .heat-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--danger)); transition: width 0.3s; }
 
         .heat-meta { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; font-weight: bold; color: #94a3b8; }
-        .time-to-full { color: var(--danger); }
+        .time-to-full { color: var(--danger); font-family: 'Orbitron'; }
 
         .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 15px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
         
@@ -123,11 +122,7 @@
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
         }
-        .action-info { display: flex; flex-direction: column; gap: 4px; }
-        .action-title { font-weight: 700; font-size: 15px; }
-        .action-reward { font-size: 12px; color: var(--neon-gold); }
-
-        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-family: 'Rajdhani', sans-serif; }
+        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -205,23 +200,13 @@
     </div>
 
     <div class="section-header"><i class="fas fa-users"></i> NETWORK & TASKS</div>
-    
     <div class="action-box" style="border-right: 4px solid var(--accent);">
         <div class="action-info">
-            <div class="action-title">Invite Network</div>
-            <div class="action-reward">+1 Coin + %10 Speed Hash</div>
+            <div style="font-weight:700">Invite Network</div>
+            <div style="font-size:12px; color:var(--neon-gold)">+1 Coin + %10 Speed</div>
         </div>
-        <button class="btn-action" onclick="inviteFriend()" style="background: var(--accent);">INVITE</button>
+        <button class="btn-action" onclick="inviteFriend()">INVITE</button>
     </div>
-
-    <div class="action-box" style="border-right: 4px solid var(--neon-purple);">
-        <div class="action-info">
-            <div class="action-title">Affiliate Claim</div>
-            <div id="affiliate-amount" class="action-reward">0.0000 COIN</div>
-        </div>
-        <button class="btn-action" onclick="claimAffiliate()">CLAIM</button>
-    </div>
-
 </div>
 
 <script>
@@ -232,8 +217,7 @@
     let currentMined = 0; 
     let heat = 0;
     let gpus = 1;
-    let coolingPower = 1; // Soğutma katsayısı
-    let affiliateBalance = 0;
+    let coolingPower = 1; 
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
     if(tg.initDataUnsafe.user) {
@@ -244,13 +228,11 @@
         try {
             const response = await fetch(`/api/user/${telegramId}`);
             const data = await response.json();
-            
             totalBalance = data.balance || 0;
             gpus = data.gpus || 1;
             heat = data.heat || 0;
             currentMined = data.mined || 0;
-            coolingPower = data.coolingPower || 1;
-            
+            coolingPower = data.coolingPower || 1; 
             updateUI();
         } catch (err) { console.error("Data load error:", err); }
     }
@@ -272,56 +254,51 @@
         let hourlyRate = (gpus * 0.0005) * 3600;
         document.getElementById('hourly-rate').innerText = hourlyRate.toFixed(2);
 
-        // Kalan Süre Hesaplama: 100 dereceye ulaşmak için saniyede 0.3/coolingPower artış var
-        let heatPerSec = 0.3 / coolingPower;
+        // Zaman Hesabı: Baz süre yaklaşık 9 dakika (555sn). CoolingPower çarpanı süreyi uzatır.
+        let heatPerSec = 0.18 / coolingPower; 
         let secondsToFull = (100 - heat) / heatPerSec;
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
     }
 
-    // Oyun Döngüsü
     setInterval(() => {
         if (heat < 100) {
             currentMined += (gpus * 0.0005);
-            heat = Math.min(100, heat + (0.3 / coolingPower));
+            heat = Math.min(100, heat + (0.18 / coolingPower));
         }
         updateUI();
     }, 1000);
+
+    function buyItem(type, power, price) {
+        tg.showConfirm(`Purchase for $${price}?`, async (confirmed) => {
+            if(confirmed) {
+                if(type === 'gpu') {
+                    gpus += power;
+                } else if(type === 'cool') {
+                    // +1 saat eklemek demek direnci arttırmak demek
+                    coolingPower += (power * 6.5); 
+                }
+                updateUI();
+                await saveUserData(); // Satın alma sonrası hemen kaydet
+                tg.showAlert(`Upgrade Successful!`);
+            }
+        });
+    }
 
     function claimMined() {
         if (currentMined > 0) {
             totalBalance += currentMined;
             currentMined = 0;
-            tg.HapticFeedback.notificationOccurred('success');
             updateUI();
             saveUserData();
-        } else {
-            tg.showAlert("Mining engine is empty!");
+            tg.HapticFeedback.notificationOccurred('success');
         }
     }
 
     function coolDown() {
         heat = 0;
-        tg.HapticFeedback.impactOccurred('medium');
         updateUI();
         saveUserData();
-    }
-
-    function buyItem(type, power, price) {
-        tg.showConfirm(`Purchase for $${price}?`, (confirmed) => {
-            if(confirmed) {
-                if(type === 'gpu') {
-                    gpus += power;
-                    tg.showAlert(`GPU Purchased! Speed increased.`);
-                } else if(type === 'cool') {
-                    // +1 saat eklemek, artış hızını düşürmek demektir
-                    // Formül: coolingPower arttıkça ısı artışı yavaşlar
-                    coolingPower += (power * 0.5); 
-                    tg.showAlert(`Cooling Upgraded! Your rig stays cool longer.`);
-                }
-                updateUI();
-                saveUserData();
-            }
-        });
+        tg.HapticFeedback.impactOccurred('medium');
     }
 
     async function saveUserData() {
@@ -330,19 +307,14 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    telegramId,
-                    balance: totalBalance,
-                    gpus,
-                    heat,
-                    mined: currentMined,
-                    coolingPower
+                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, coolingPower
                 })
             });
         } catch (err) { console.error("Save error:", err); }
     }
 
     loadUserData();
-    setInterval(saveUserData, 15000);
+    setInterval(saveUserData, 20000); // Her 20 saniyede bir otomatik yedek
 </script>
 </body>
 </html>
