@@ -1,59 +1,61 @@
 const { Telegraf, Markup } = require('telegraf');
 const express = require('express');
-const path = require('path');
-const axios = require('axios');
+const mongoose = require('mongoose');
 
-// 1. AYARLAR: Token ve Linkleri sistemden çekiyoruz
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const WEBAPP_URL = process.env.WEBAPP_URL; // Render/Ngrok linkin
-const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI; // MongoDB'den aldığın link
+const WEBAPP_URL = process.env.WEBAPP_URL;
 
 const app = express();
 const bot = new Telegraf(BOT_TOKEN);
 
-// 2. WEB SUNUCUSU AYARLARI
-app.use(express.static(__dirname)); // index.html'i okuması için
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// 1. Veritabanı Şeması (Kullanıcı verileri burada saklanır)
+const userSchema = new mongoose.Schema({
+    telegramId: { type: Number, unique: true },
+    balance: { type: Number, default: 0 },
+    gpus: { type: Number, default: 1 },
+    lastUpdate: { type: Date, default: Date.now } // Kapalıyken kazım için kritik
 });
+const User = mongoose.model('User', userSchema);
 
-// 3. BOT KOMUTLARI
-bot.start((ctx) => {
-    const user = ctx.from.first_name;
-    
-    // Eğer WEBAPP_URL tanımlı değilse uyarı ver (test aşaması için)
-    if (!WEBAPP_URL) {
-        return ctx.reply("Hata: WEBAPP_URL tanımlanmamış. Lütfen sunucu ayarlarını kontrol edin.");
+// 2. MongoDB Bağlantısı
+mongoose.connect(MONGO_URI).then(() => console.log("MongoDB Bağlandı! ✅"));
+
+app.use(express.json());
+app.use(express.static(__dirname));
+
+// 3. Mini App için API uçları
+// Kullanıcı verilerini getir
+app.get('/api/user/:id', async (req, res) => {
+    let user = await User.findOne({ telegramId: req.params.id });
+    if (!user) {
+        user = await User.create({ telegramId: req.params.id });
     }
+    
+    // OFFLINE KAZIM HESAPLAMA
+    const now = new Date();
+    const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
+    const offlineEarning = gapInSeconds * (user.gpus * 0.0005); // GPU başına saniyelik kazanç
+    
+    user.balance += offlineEarning;
+    user.lastUpdate = now;
+    await user.save();
 
-    ctx.reply(`🚀 Selam ${user}! VoltFarm'a hoş geldin.\n\nAlttaki butona basarak madencilik çiftliğini yönetmeye başlayabilirsin.`, 
-        Markup.inlineKeyboard([
-            [Markup.button.webApp('🎮 Oyunu Başlat', WEBAPP_URL)]
-        ])
-    );
+    res.json(user);
 });
 
-// 4. SUNUCU VE BOTU BAŞLATMA
-bot.launch().then(() => {
-    console.log("------------------------------------");
-    console.log("🤖 Telegram Bot: AKTİF");
-}).catch(err => console.error("Bot başlatılamadı:", err));
-
-app.listen(PORT, () => {
-    console.log(`🌐 Web Sunucusu: localhost:${PORT} portunda AKTİF`);
-    console.log("------------------------------------");
+// Verileri Kaydet (Buna oyun içinden periyodik olarak istek atacağız)
+app.post('/api/save', async (req, res) => {
+    const { telegramId, balance, gpus } = req.body;
+    await User.findOneAndUpdate({ telegramId }, { balance, gpus, lastUpdate: new Date() });
+    res.sendStatus(200);
 });
 
-// 5. RENDER UYKU MODU ENGELLEYİCİ (10 dakikada bir ping atar)
-if (WEBAPP_URL) {
-    setInterval(() => {
-        axios.get(WEBAPP_URL)
-            .then(() => console.log("Ping: Sunucu uyanık tutuluyor..."))
-            .catch(() => console.log("Ping: Hata oluştu (normaldir)."));
-    }, 600000); 
-}
+bot.start((ctx) => {
+    ctx.reply("VoltFarm'a Hoş Geldin!", Markup.inlineKeyboard([
+        [Markup.button.webApp('🚀 Madene Gir', WEBAPP_URL)]
+    ]));
+});
 
-// Güvenli kapatma
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+bot.launch();
+app.listen(process.env.PORT || 3000);
