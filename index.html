@@ -86,9 +86,9 @@
         let balance = 0;
         let heat = 0;
         let gpus = 1;
-        let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345; // Test için 12345
+        let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
 
-        // 1. Veritabanından Verileri Çek (Oyun Başlangıcı)
+        // 1. Veritabanından Verileri Çek (Sıcaklık Dahil)
         async function loadUserData() {
             try {
                 const response = await fetch(`/api/user/${telegramId}`);
@@ -96,7 +96,8 @@
                 
                 balance = data.balance;
                 gpus = data.gpus;
-                // Isı veritabanında tutulmuyor, her girişte 0'dan başlar (Opsiyonel: Kaydedilebilir)
+                heat = data.heat || 0; // Veritabanındaki sıcaklığı çek
+                
                 updateUI();
                 console.log("Veriler yüklendi ve çevrimdışı kazanç eklendi.");
             } catch (err) {
@@ -104,7 +105,7 @@
             }
         }
 
-        // 2. Veritabanına Verileri Kaydet (Her 10 saniyede bir)
+        // 2. Veritabanına Kaydet (Sıcaklık Dahil)
         async function saveUserData() {
             try {
                 await fetch('/api/save', {
@@ -113,7 +114,8 @@
                     body: JSON.stringify({
                         telegramId: telegramId,
                         balance: balance,
-                        gpus: gpus
+                        gpus: gpus,
+                        heat: heat // Artık sıcaklığı da gönderiyoruz
                     })
                 });
                 console.log("Veriler yedeklendi.");
@@ -129,31 +131,39 @@
             document.getElementById('gpu-count').innerText = gpus;
 
             const status = document.getElementById('status-text');
-            if (heat > 80) {
-                status.innerText = "⚠️ SYSTEM OVERHEATING!";
+            if (heat >= 100) {
+                status.innerText = "🛑 SYSTEM OVERHEATED - MINING STOPPED";
                 status.style.color = "#ef4444";
+            } else if (heat > 80) {
+                status.innerText = "⚠️ WARNING: HIGH TEMPERATURE";
+                status.style.color = "#f59e0b";
             } else {
                 status.innerText = "✅ Optimal Condition";
                 status.style.color = "#10b981";
             }
         }
 
-        // Oyun Döngüsü
+        // Oyun Döngüsü (Her saniye)
         setInterval(() => {
+            // Isı 100 ise kazanç 0 olur
             let efficiency = heat >= 100 ? 0 : (heat > 90 ? 0.05 : 1); 
+            
             balance += (gpus * 0.0005) * efficiency;
+            
+            // Saniyede 0.3 ısı artışı
             heat = Math.min(100, heat + 0.3);
+            
             updateUI();
         }, 1000);
 
-        // Her 10 saniyede bir sunucuya yedekle
+        // Her 10 saniyede bir otomatik yedekle
         setInterval(saveUserData, 10000);
 
         function coolDown() {
             heat = 0;
             tg.HapticFeedback.impactOccurred('medium');
             updateUI();
-            saveUserData(); // Soğutunca da kaydet
+            saveUserData(); // Sıfırlayınca anında sunucuya bildir
         }
 
         function buyGPU() {
@@ -162,13 +172,13 @@
                 gpus++;
                 tg.HapticFeedback.notificationOccurred('success');
                 updateUI();
-                saveUserData(); // GPU alınca hemen kaydet
+                saveUserData();
             } else {
                 tg.showAlert("Not enough balance! You need 10 COIN.");
             }
         }
 
-        // Başlangıçta verileri çek
+        // Başlangıçta verileri sunucudan çek
         loadUserData();
     </script>
 </body>
