@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },   // Kesinleşmiş ana bakiye
     mined: { type: Number, default: 0 },     // Henüz toplanmamış (biriken) miktar
     gpus: { type: Number, default: 1 },
+    coolingPower: { type: Number, default: 1 },
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now }
 });
@@ -80,7 +81,8 @@ app.post('/api/save', async (req, res) => {
                 balance, 
                 gpus, 
                 heat, 
-                mined, // Kullanıcın toplamadığı biriken tutarı da kaydet
+                mined,
+                coolingPower,
                 lastUpdate: new Date() 
             },
             { upsert: true }
