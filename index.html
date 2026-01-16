@@ -68,7 +68,7 @@
             <div class="heat-container">
                 <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
             </div>
-            <div id="status-text" style="font-size: 12px; color: #10b981;">Optimal Condition</div>
+            <div id="status-text" style="font-size: 12px; color: #10b981;">Connecting...</div>
         </div>
 
         <div class="card">
@@ -86,6 +86,41 @@
         let balance = 0;
         let heat = 0;
         let gpus = 1;
+        let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345; // Test için 12345
+
+        // 1. Veritabanından Verileri Çek (Oyun Başlangıcı)
+        async function loadUserData() {
+            try {
+                const response = await fetch(`/api/user/${telegramId}`);
+                const data = await response.json();
+                
+                balance = data.balance;
+                gpus = data.gpus;
+                // Isı veritabanında tutulmuyor, her girişte 0'dan başlar (Opsiyonel: Kaydedilebilir)
+                updateUI();
+                console.log("Veriler yüklendi ve çevrimdışı kazanç eklendi.");
+            } catch (err) {
+                console.error("Veri çekme hatası:", err);
+            }
+        }
+
+        // 2. Veritabanına Verileri Kaydet (Her 10 saniyede bir)
+        async function saveUserData() {
+            try {
+                await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: telegramId,
+                        balance: balance,
+                        gpus: gpus
+                    })
+                });
+                console.log("Veriler yedeklendi.");
+            } catch (err) {
+                console.error("Kayıt hatası:", err);
+            }
+        }
 
         function updateUI() {
             document.getElementById('balance').innerText = balance.toFixed(4);
@@ -105,16 +140,20 @@
 
         // Oyun Döngüsü
         setInterval(() => {
-            let efficiency = heat > 90 ? 0.05 : 1; 
+            let efficiency = heat >= 100 ? 0 : (heat > 90 ? 0.05 : 1); 
             balance += (gpus * 0.0005) * efficiency;
             heat = Math.min(100, heat + 0.3);
             updateUI();
         }, 1000);
 
+        // Her 10 saniyede bir sunucuya yedekle
+        setInterval(saveUserData, 10000);
+
         function coolDown() {
             heat = 0;
             tg.HapticFeedback.impactOccurred('medium');
             updateUI();
+            saveUserData(); // Soğutunca da kaydet
         }
 
         function buyGPU() {
@@ -123,10 +162,14 @@
                 gpus++;
                 tg.HapticFeedback.notificationOccurred('success');
                 updateUI();
+                saveUserData(); // GPU alınca hemen kaydet
             } else {
                 tg.showAlert("Not enough balance! You need 10 COIN.");
             }
         }
+
+        // Başlangıçta verileri çek
+        loadUserData();
     </script>
 </body>
 </html>
