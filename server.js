@@ -16,13 +16,13 @@ const bot = new Telegraf(BOT_TOKEN);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// 2. VERİTABANI MODELİ (Mined alanı eklendi)
+// 2. VERİTABANI MODELİ
 const userSchema = new mongoose.Schema({
     telegramId: { type: Number, unique: true },
-    balance: { type: Number, default: 0 },   // Kesinleşmiş ana bakiye
-    mined: { type: Number, default: 0 },     // Henüz toplanmamış (biriken) miktar
+    balance: { type: Number, default: 0 },   // Ana bakiye
+    mined: { type: Number, default: 0 },     // Toplanmamış biriken
     gpus: { type: Number, default: 1 },
-    coolingPower: { type: Number, default: 1 },
+    coolingPower: { type: Number, default: 1 }, // Soğutma gücü
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now }
 });
@@ -35,7 +35,7 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
-// Kullanıcı verilerini getirme ve Offline Kazım Hesaplama
+// Kullanıcı verilerini getirme ve Çevrimdışı Kazım Hesaplama
 app.get('/api/user/:id', async (req, res) => {
     try {
         let user = await User.findOne({ telegramId: req.params.id });
@@ -46,21 +46,25 @@ app.get('/api/user/:id', async (req, res) => {
         const now = new Date();
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
         
+        // Isınma hızı frontend ile aynı olmalı: (0.18 / coolingPower)
+        const heatPerSec = 0.18 / (user.coolingPower || 1);
+
         if (gapInSeconds > 0 && user.heat < 100) {
-            // Isınma hızı: saniyede 0.3 artış
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
-            const secondsUntilOverheat = heatNeededToMax / 0.3;
+            
+            // Maksimum ısıya ne kadar sürede ulaşır?
+            const secondsUntilOverheat = heatNeededToMax / heatPerSec;
 
-            // Maksimum ısınana kadar ne kadar saniye kazım yapabilir?
+            // Gerçek kazım süresi (Geçen süre veya cihazın ısınana kadar geçirdiği süre)
             const activeMiningSeconds = Math.min(gapInSeconds, secondsUntilOverheat);
             
-            // Çevrimdışı kazancı "mined" (biriken) kısmına ekle (Balance'a değil!)
+            // Çevrimdışı kazanç hesabı
             const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
             user.mined += offlineEarning;
 
-            // Isıyı geçen süreye göre güncelle
-            user.heat = Math.min(100, currentHeat + (gapInSeconds * 0.3));
+            // Isıyı yeni duruma göre güncelle
+            user.heat = Math.min(100, currentHeat + (gapInSeconds * heatPerSec));
         }
 
         user.lastUpdate = now;
@@ -71,10 +75,12 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
-// Verileri kaydetme yolu (Mined verisi de eklenmiş hali)
+// Verileri Kaydetme (Gelen coolingPower artık kaydediliyor)
 app.post('/api/save', async (req, res) => {
     try {
-        const { telegramId, balance, gpus, heat, mined } = req.body;
+        // req.body içinden coolingPower'ı almayı unutmamalıyız!
+        const { telegramId, balance, gpus, heat, mined, coolingPower } = req.body;
+        
         await User.findOneAndUpdate(
             { telegramId }, 
             { 
@@ -82,7 +88,7 @@ app.post('/api/save', async (req, res) => {
                 gpus, 
                 heat, 
                 mined,
-                coolingPower,
+                coolingPower, // Burası artık boş gitmeyecek
                 lastUpdate: new Date() 
             },
             { upsert: true }
