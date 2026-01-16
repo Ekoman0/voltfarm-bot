@@ -3,183 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoltFarm Mining</title>
+    <title>VoltFarm Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+
         :root {
-            --tg-theme-bg: #0f172a;
-            --tg-theme-text: #f8fafc;
-            --accent: #38bdf8;
+            --bg: #020617;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent: #0ea5e9;
+            --neon-green: #22c55e;
+            --neon-purple: #a855f7;
+            --neon-gold: #fbbf24;
             --danger: #ef4444;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--tg-theme-bg);
-            color: var(--tg-theme-text);
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at top right, #1e1b4b, transparent),
+                              radial-gradient(circle at bottom left, #0f172a, transparent);
+            color: white;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
         }
-        .container { width: 100%; max-width: 400px; }
-        .card {
-            background: #1e293b;
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            border: 1px solid #334155;
-            text-align: center;
-        }
-        .stat-value { font-size: 32px; font-weight: 800; color: var(--accent); margin: 10px 0; }
-        .label { color: #94a3b8; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .heat-container { width: 100%; background: #334155; height: 12px; border-radius: 10px; margin: 15px 0; overflow: hidden; }
-        .heat-bar { height: 100%; background: linear-gradient(90deg, #38bdf8, #ef4444); transition: width 0.3s; }
-        
-        button {
+
+        .container { width: 100%; max-width: 420px; }
+
+        /* --- HEADER --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             width: 100%;
-            padding: 15px;
-            border-radius: 15px;
-            border: none;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: transform 0.1s;
+            margin-bottom: 25px;
+            padding: 10px 0;
         }
-        button:active { transform: scale(0.98); }
-        .btn-cool { background: #0ea5e9; color: white; }
-        .btn-buy { background: #10b981; color: white; }
+
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .avatar {
+            width: 45px; height: 45px;
+            border-radius: 12px;
+            background: linear-gradient(45deg, var(--accent), var(--neon-purple));
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+            font-size: 20px;
+        }
+
+        .balance-pill {
+            background: var(--card-bg);
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- MINING CARD (ORTE) --- */
+        .mining-main {
+            background: var(--card-bg);
+            border-radius: 30px;
+            padding: 30px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 25px;
+        }
+
+        .mining-main::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, var(--accent), transparent 30%);
+            animation: rotate 4s linear infinite;
+            z-index: -1; opacity: 0.2;
+        }
+
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+
+        .mining-title { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 2px; color: var(--accent); }
+        .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 15px 0; text-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
+
+        .btn-claim {
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white; border: none; padding: 15px 40px; border-radius: 15px;
+            font-family: 'Orbitron', sans-serif; font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+            transition: 0.3s; width: 100%;
+        }
+        .btn-claim:active { transform: scale(0.95); }
+
+        .heat-container { width: 100%; height: 8px; background: #0f172a; border-radius: 10px; margin-top: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+        .heat-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--danger)); transition: width 0.3s; }
+
+        /* --- GPU SHOP (USD) --- */
+        .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 15px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
+        
+        .gpu-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
+        .gpu-card {
+            min-width: 140px; background: var(--card-bg); padding: 20px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+        }
+        .gpu-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
+        .gpu-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
+
+        /* --- LIST ITEMS (Tasks & Ref) --- */
+        .action-box {
+            background: var(--card-bg); padding: 16px; border-radius: 18px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .action-info { display: flex; flex-direction: column; gap: 4px; }
+        .action-title { font-weight: 700; font-size: 15px; }
+        .action-reward { font-size: 12px; color: var(--neon-gold); }
+
+        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-family: 'Rajdhani', sans-serif; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <div class="label">Total Balance</div>
-            <div id="balance" class="stat-value">0.0000</div>
-            <div class="label">COIN</div>
-        </div>
 
-        <div class="card">
-            <div class="label">System Temperature</div>
-            <div id="heat-text" style="font-weight: bold; margin-top: 10px;">0%</div>
-            <div class="heat-container">
-                <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
+<div class="container">
+    <div class="header">
+        <div class="user-info" onclick="tg.showAlert('Profile/Wallet section is coming soon!')">
+            <div class="avatar"><i class="fas fa-microchip"></i></div>
+            <div>
+                <div style="font-size: 12px; color: #94a3b8;">WELCOME BACK</div>
+                <div id="user-name" style="font-weight: 700;">PLAYER</div>
             </div>
-            <div id="status-text" style="font-size: 12px; color: #10b981;">Connecting...</div>
         </div>
-
-        <div class="card">
-            <div class="label">Hardware: <span id="gpu-count" style="color: white;">1</span> GPU</div>
+        <div class="balance-pill">
+            <span id="total-balance" style="color: var(--neon-gold); font-weight: bold; font-size: 18px;">0.00</span>
+            <span style="font-size: 12px; color: #94a3b8;"> COIN</span>
         </div>
-
-        <button class="btn-cool" onclick="coolDown()">❄️ COOL SYSTEM</button>
-        <button class="btn-buy" onclick="buyGPU()">🛒 UPGRADE GPU (10 COIN)</button>
     </div>
 
-    <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand();
+    <div class="mining-main">
+        <div class="mining-title">MINING ENGINE V2.0</div>
+        <div id="mined-amount" class="mining-val">0.0000</div>
+        <button class="btn-claim" onclick="claimMined()">CLAIM COINS</button>
+        
+        <div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px;">
+            <span>CORE TEMP</span>
+            <span id="heat-text">0%</span>
+        </div>
+        <div class="heat-container">
+            <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
+        </div>
+        <button onclick="coolDown()" style="background: none; border: none; color: var(--accent); margin-top: 15px; font-weight: bold; cursor: pointer;">
+            <i class="fas fa-snowflake"></i> ACTIVATE COOLING
+        </button>
+    </div>
 
-        let balance = 0;
-        let heat = 0;
-        let gpus = 1;
-        let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
+    <div class="section-header"><i class="fas fa-shopping-cart"></i> PREMIUM HARDWARE (USD)</div>
+    <div class="gpu-scroll">
+        <div class="gpu-card" onclick="buyPremiumGPU(1)">
+            <div class="gpu-icon">⚡</div>
+            <div style="font-size: 14px;">GTX 1080</div>
+            <div class="gpu-price">$1.00</div>
+        </div>
+        <div class="gpu-card" onclick="buyPremiumGPU(10)">
+            <div class="gpu-icon">💎</div>
+            <div style="font-size: 14px;">RTX 3080</div>
+            <div class="gpu-price">$10.00</div>
+        </div>
+        <div class="gpu-card" onclick="buyPremiumGPU(50)">
+            <div class="gpu-icon">🔥</div>
+            <div style="font-size: 14px;">H100 AI</div>
+            <div class="gpu-price">$50.00</div>
+        </div>
+    </div>
 
-        // 1. Veritabanından Verileri Çek (Sıcaklık Dahil)
-        async function loadUserData() {
-            try {
-                const response = await fetch(`/api/user/${telegramId}`);
-                const data = await response.json();
-                
-                balance = data.balance;
-                gpus = data.gpus;
-                heat = data.heat || 0; // Veritabanındaki sıcaklığı çek
-                
-                updateUI();
-                console.log("Veriler yüklendi ve çevrimdışı kazanç eklendi.");
-            } catch (err) {
-                console.error("Veri çekme hatası:", err);
-            }
-        }
+    <div class="section-header"><i class="fas fa-users"></i> NETWORK & TASKS</div>
+    
+    <div class="action-box" style="border-right: 4px solid var(--accent);">
+        <div class="action-info">
+            <div class="action-title">Invite Network</div>
+            <div class="action-reward">+1 Coin + %10 Speed Hash</div>
+        </div>
+        <button class="btn-action" onclick="inviteFriend()" style="background: var(--accent);">INVITE</button>
+    </div>
 
-        // 2. Veritabanına Kaydet (Sıcaklık Dahil)
-        async function saveUserData() {
-            try {
-                await fetch('/api/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        telegramId: telegramId,
-                        balance: balance,
-                        gpus: gpus,
-                        heat: heat // Artık sıcaklığı da gönderiyoruz
-                    })
-                });
-                console.log("Veriler yedeklendi.");
-            } catch (err) {
-                console.error("Kayıt hatası:", err);
-            }
-        }
+    <div class="action-box" style="border-right: 4px solid var(--neon-purple);">
+        <div class="action-info">
+            <div class="action-title">Affiliate Claim</div>
+            <div id="affiliate-amount" class="action-reward">0.0000 COIN</div>
+        </div>
+        <button class="btn-action" onclick="claimAffiliate()">CLAIM</button>
+    </div>
 
-        function updateUI() {
-            document.getElementById('balance').innerText = balance.toFixed(4);
-            document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
-            document.getElementById('heat-bar').style.width = heat + '%';
-            document.getElementById('gpu-count').innerText = gpus;
+    <div class="action-box">
+        <div class="action-info">
+            <div class="action-title">Boost Official Channel</div>
+            <div class="action-reward">REWARD: 5.00 COIN</div>
+        </div>
+        <button class="btn-action" onclick="completeTask('boost')">DONE</button>
+    </div>
 
-            const status = document.getElementById('status-text');
-            if (heat >= 100) {
-                status.innerText = "🛑 SYSTEM OVERHEATED - MINING STOPPED";
-                status.style.color = "#ef4444";
-            } else if (heat > 80) {
-                status.innerText = "⚠️ WARNING: HIGH TEMPERATURE";
-                status.style.color = "#f59e0b";
-            } else {
-                status.innerText = "✅ Optimal Condition";
-                status.style.color = "#10b981";
-            }
-        }
+</div>
 
-        // Oyun Döngüsü (Her saniye)
-        setInterval(() => {
-            // Isı 100 ise kazanç 0 olur
-            let efficiency = heat >= 100 ? 0 : (heat > 90 ? 0.05 : 1); 
-            
-            balance += (gpus * 0.0005) * efficiency;
-            
-            // Saniyede 0.3 ısı artışı
+<script>
+    let tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.backgroundColor = "#020617";
+    tg.headerColor = "#020617";
+
+    let totalBalance = 0;
+    let currentMined = 0;
+    let heat = 0;
+    let gpus = 1;
+    let affiliateBalance = 0;
+    let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
+    
+    // Kullanıcı adını Telegram'dan al
+    if(tg.initDataUnsafe.user) {
+        document.getElementById('user-name').innerText = tg.initDataUnsafe.user.first_name.toUpperCase();
+    }
+
+    async function loadUserData() {
+        try {
+            const response = await fetch(`/api/user/${telegramId}`);
+            const data = await response.json();
+            totalBalance = data.balance;
+            gpus = data.gpus;
+            heat = data.heat || 0;
+            updateUI();
+        } catch (err) { console.error(err); }
+    }
+
+    function updateUI() {
+        document.getElementById('total-balance').innerText = totalBalance.toFixed(2);
+        document.getElementById('mined-amount').innerText = currentMined.toFixed(4);
+        document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
+        document.getElementById('heat-bar').style.width = heat + '%';
+        document.getElementById('affiliate-amount').innerText = affiliateBalance.toFixed(4) + " COIN";
+    }
+
+    setInterval(() => {
+        if (heat < 100) {
+            let gain = (gpus * 0.0005);
+            currentMined += gain;
             heat = Math.min(100, heat + 0.3);
-            
-            updateUI();
-        }, 1000);
-
-        // Her 10 saniyede bir otomatik yedekle
-        setInterval(saveUserData, 10000);
-
-        function coolDown() {
-            heat = 0;
-            tg.HapticFeedback.impactOccurred('medium');
-            updateUI();
-            saveUserData(); // Sıfırlayınca anında sunucuya bildir
         }
+        updateUI();
+    }, 1000);
 
-        function buyGPU() {
-            if (balance >= 10) {
-                balance -= 10;
-                gpus++;
-                tg.HapticFeedback.notificationOccurred('success');
-                updateUI();
-                saveUserData();
-            } else {
-                tg.showAlert("Not enough balance! You need 10 COIN.");
-            }
+    function claimMined() {
+        if (currentMined > 0) {
+            totalBalance += currentMined;
+            currentMined = 0;
+            tg.HapticFeedback.notificationOccurred('success');
+            saveUserData();
+            updateUI();
+        } else {
+            tg.showAlert("Mining engine is empty!");
         }
+    }
 
-        // Başlangıçta verileri sunucudan çek
-        loadUserData();
-    </script>
+    function coolDown() {
+        heat = 0;
+        tg.HapticFeedback.impactOccurred('medium');
+        updateUI();
+        saveUserData();
+    }
+
+    function inviteFriend() {
+        const inviteLink = `https://t.me/SeninBotLinkin?start=${telegramId}`;
+        const shareText = "Join VoltFarm and start mining!";
+        const fullUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`;
+        tg.openTelegramLink(fullUrl);
+    }
+
+    async function saveUserData() {
+        await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: telegramId,
+                balance: totalBalance,
+                gpus: gpus,
+                heat: heat
+            })
+        });
+    }
+
+    loadUserData();
+    setInterval(saveUserData, 15000); // 15 saniyede bir oto-save
+</script>
 </body>
 </html>
