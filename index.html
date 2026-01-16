@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltFarm Mining</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg: #0f172a;
+            --tg-theme-text: #f8fafc;
+            --accent: #38bdf8;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--tg-theme-bg);
+            color: var(--tg-theme-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { width: 100%; max-width: 400px; }
+        .card {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #334155;
+            text-align: center;
+        }
+        .stat-value { font-size: 32px; font-weight: 800; color: var(--accent); margin: 10px 0; }
+        .label { color: #94a3b8; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .heat-container { width: 100%; background: #334155; height: 12px; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        .heat-bar { height: 100%; background: linear-gradient(90deg, #38bdf8, #ef4444); transition: width 0.3s; }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 15px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-cool { background: #0ea5e9; color: white; }
+        .btn-buy { background: #10b981; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="label">Total Balance</div>
+            <div id="balance" class="stat-value">0.0000</div>
+            <div class="label">COIN</div>
+        </div>
+
+        <div class="card">
+            <div class="label">System Temperature</div>
+            <div id="heat-text" style="font-weight: bold; margin-top: 10px;">0%</div>
+            <div class="heat-container">
+                <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
+            </div>
+            <div id="status-text" style="font-size: 12px; color: #10b981;">Optimal Condition</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Hardware: <span id="gpu-count" style="color: white;">1</span> GPU</div>
+        </div>
+
+        <button class="btn-cool" onclick="coolDown()">❄️ COOL SYSTEM</button>
+        <button class="btn-buy" onclick="buyGPU()">🛒 UPGRADE GPU (10 COIN)</button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let balance = 0;
+        let heat = 0;
+        let gpus = 1;
+
+        function updateUI() {
+            document.getElementById('balance').innerText = balance.toFixed(4);
+            document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
+            document.getElementById('heat-bar').style.width = heat + '%';
+            document.getElementById('gpu-count').innerText = gpus;
+
+            const status = document.getElementById('status-text');
+            if (heat > 80) {
+                status.innerText = "⚠️ SYSTEM OVERHEATING!";
+                status.style.color = "#ef4444";
+            } else {
+                status.innerText = "✅ Optimal Condition";
+                status.style.color = "#10b981";
+            }
+        }
+
+        // Oyun Döngüsü
+        setInterval(() => {
+            let efficiency = heat > 90 ? 0.05 : 1; 
+            balance += (gpus * 0.0005) * efficiency;
+            heat = Math.min(100, heat + 0.3);
+            updateUI();
+        }, 1000);
+
+        function coolDown() {
+            heat = 0;
+            tg.HapticFeedback.impactOccurred('medium');
+            updateUI();
+        }
+
+        function buyGPU() {
+            if (balance >= 10) {
+                balance -= 10;
+                gpus++;
+                tg.HapticFeedback.notificationOccurred('success');
+                updateUI();
+            } else {
+                tg.showAlert("Not enough balance! You need 10 COIN.");
+            }
+        }
+    </script>
+</body>
+</html>
