@@ -17,6 +17,7 @@
             --neon-purple: #a855f7;
             --neon-gold: #fbbf24;
             --danger: #ef4444;
+            --cool-blue: #00f2ff;
         }
 
         body {
@@ -86,7 +87,6 @@
         .mining-title { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 2px; color: var(--accent); }
         .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 10px 0 5px 0; text-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
         
-        /* Hız Göstergesi Stili */
         .mining-speed { font-size: 13px; color: #94a3b8; margin-bottom: 15px; font-weight: bold; }
         .mining-speed i { color: var(--neon-green); margin-right: 4px; }
 
@@ -99,19 +99,24 @@
         }
         .btn-claim:active { transform: scale(0.95); }
 
-        .heat-container { width: 100%; height: 8px; background: #0f172a; border-radius: 10px; margin-top: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+        .heat-container { width: 100%; height: 8px; background: #0f172a; border-radius: 10px; margin-top: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
         .heat-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--danger)); transition: width 0.3s; }
+
+        .heat-meta { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; font-weight: bold; color: #94a3b8; }
+        .time-to-full { color: var(--danger); }
 
         .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 15px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
         
-        .gpu-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
-        .gpu-card {
+        .market-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
+        .market-card {
             min-width: 140px; background: var(--card-bg); padding: 20px; border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1); text-align: center;
         }
-        .gpu-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
-        .gpu-hrate { font-size: 11px; color: var(--neon-green); margin: 5px 0; font-weight: bold; }
-        .gpu-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
+        .market-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
+        .market-benefit { font-size: 11px; margin: 5px 0; font-weight: bold; }
+        .gpu-color { color: var(--neon-green); }
+        .cool-color { color: var(--cool-blue); }
+        .market-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
         .action-box {
             background: var(--card-bg); padding: 16px; border-radius: 18px;
@@ -129,7 +134,7 @@
 
 <div class="container">
     <div class="header">
-        <div class="user-info" onclick="tg.showAlert('Profile & Wallet section is coming soon!')">
+        <div class="user-info">
             <div class="avatar"><i class="fas fa-microchip"></i></div>
             <div>
                 <div style="font-size: 12px; color: #94a3b8;">WELCOME BACK</div>
@@ -149,37 +154,53 @@
         
         <button class="btn-claim" onclick="claimMined()">CLAIM COINS</button>
         
-        <div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px;">
-            <span>CORE TEMP</span>
+        <div class="heat-meta">
+            <span>FULL HEAT IN: <span id="time-left" class="time-to-full">00:00:00</span></span>
             <span id="heat-text">0%</span>
         </div>
         <div class="heat-container">
             <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
         </div>
-        <button onclick="coolDown()" style="background: none; border: none; color: var(--accent); margin-top: 15px; font-weight: bold; cursor: pointer;">
+        <button onclick="coolDown()" style="background: none; border: none; color: var(--cool-blue); margin-top: 15px; font-weight: bold; cursor: pointer;">
             <i class="fas fa-snowflake"></i> ACTIVATE COOLING
         </button>
     </div>
 
     <div class="section-header"><i class="fas fa-shopping-cart"></i> PREMIUM HARDWARE (USD)</div>
-    <div class="gpu-scroll">
-        <div class="gpu-card" onclick="buyPremiumGPU(1)">
-            <div class="gpu-icon">⚡</div>
+    <div class="market-scroll">
+        <div class="market-card" onclick="buyItem('gpu', 1, 1)">
+            <div class="market-icon">⚡</div>
             <div style="font-size: 14px;">GTX 1080</div>
-            <div class="gpu-hrate">+1.80/HR</div>
-            <div class="gpu-price">$1.00</div>
+            <div class="market-benefit gpu-color">+1.80/HR</div>
+            <div class="market-price">$1.00</div>
         </div>
-        <div class="gpu-card" onclick="buyPremiumGPU(10)">
-            <div class="gpu-icon">💎</div>
+        <div class="market-card" onclick="buyItem('gpu', 10, 10)">
+            <div class="market-icon">💎</div>
             <div style="font-size: 14px;">RTX 3080</div>
-            <div class="gpu-hrate">+18.00/HR</div>
-            <div class="gpu-price">$10.00</div>
+            <div class="market-benefit gpu-color">+18.00/HR</div>
+            <div class="market-price">$10.00</div>
         </div>
-        <div class="gpu-card" onclick="buyPremiumGPU(50)">
-            <div class="gpu-icon">🔥</div>
+        <div class="market-card" onclick="buyItem('gpu', 50, 50)">
+            <div class="market-icon">🔥</div>
             <div style="font-size: 14px;">H100 AI</div>
-            <div class="gpu-hrate">+90.00/HR</div>
-            <div class="gpu-price">$50.00</div>
+            <div class="market-benefit gpu-color">+90.00/HR</div>
+            <div class="market-price">$50.00</div>
+        </div>
+    </div>
+
+    <div class="section-header"><i class="fas fa-fan"></i> COOLING UPGRADES (USD)</div>
+    <div class="market-scroll">
+        <div class="market-card" onclick="buyItem('cool', 1, 1)">
+            <div class="market-icon">❄️</div>
+            <div style="font-size: 14px;">Basic Fan</div>
+            <div class="market-benefit cool-color">+1.0 Hour</div>
+            <div class="market-price">$1.00</div>
+        </div>
+        <div class="market-card" onclick="buyItem('cool', 5.5, 5)">
+            <div class="market-icon">🧊</div>
+            <div style="font-size: 14px;">Liquid Pro</div>
+            <div class="market-benefit cool-color">+5.5 Hours</div>
+            <div class="market-price">$5.00</div>
         </div>
     </div>
 
@@ -201,25 +222,17 @@
         <button class="btn-action" onclick="claimAffiliate()">CLAIM</button>
     </div>
 
-    <div class="action-box">
-        <div class="action-info">
-            <div class="action-title">Boost Official Channel</div>
-            <div class="action-reward">REWARD: 5.00 COIN</div>
-        </div>
-        <button class="btn-action" onclick="completeTask('boost')">DONE</button>
-    </div>
 </div>
 
 <script>
     let tg = window.Telegram.WebApp;
     tg.expand();
-    tg.backgroundColor = "#020617";
-    tg.headerColor = "#020617";
 
     let totalBalance = 0;
     let currentMined = 0; 
     let heat = 0;
     let gpus = 1;
+    let coolingPower = 1; // Soğutma katsayısı
     let affiliateBalance = 0;
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
@@ -232,13 +245,22 @@
             const response = await fetch(`/api/user/${telegramId}`);
             const data = await response.json();
             
-            totalBalance = data.balance;
-            gpus = data.gpus;
+            totalBalance = data.balance || 0;
+            gpus = data.gpus || 1;
             heat = data.heat || 0;
             currentMined = data.mined || 0;
+            coolingPower = data.coolingPower || 1;
             
             updateUI();
         } catch (err) { console.error("Data load error:", err); }
+    }
+
+    function formatTime(seconds) {
+        if (seconds <= 0) return "MAX TEMP";
+        let h = Math.floor(seconds / 3600);
+        let m = Math.floor((seconds % 3600) / 60);
+        let s = Math.floor(seconds % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
     function updateUI() {
@@ -246,19 +268,21 @@
         document.getElementById('mined-amount').innerText = currentMined.toFixed(4);
         document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
         document.getElementById('heat-bar').style.width = heat + '%';
-        document.getElementById('affiliate-amount').innerText = affiliateBalance.toFixed(4) + " COIN";
         
-        // Saatlik kazanç hesapla: (gpus * 0.0005) * 3600 saniye
         let hourlyRate = (gpus * 0.0005) * 3600;
         document.getElementById('hourly-rate').innerText = hourlyRate.toFixed(2);
+
+        // Kalan Süre Hesaplama: 100 dereceye ulaşmak için saniyede 0.3/coolingPower artış var
+        let heatPerSec = 0.3 / coolingPower;
+        let secondsToFull = (100 - heat) / heatPerSec;
+        document.getElementById('time-left').innerText = formatTime(secondsToFull);
     }
 
     // Oyun Döngüsü
     setInterval(() => {
         if (heat < 100) {
-            let gain = (gpus * 0.0005);
-            currentMined += gain;
-            heat = Math.min(100, heat + 0.3);
+            currentMined += (gpus * 0.0005);
+            heat = Math.min(100, heat + (0.3 / coolingPower));
         }
         updateUI();
     }, 1000);
@@ -282,11 +306,22 @@
         saveUserData();
     }
 
-    function inviteFriend() {
-        const inviteLink = `https://t.me/SeninBotLinkin?start=${telegramId}`;
-        const shareText = "Join VoltFarm and start mining!";
-        const fullUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`;
-        tg.openTelegramLink(fullUrl);
+    function buyItem(type, power, price) {
+        tg.showConfirm(`Purchase for $${price}?`, (confirmed) => {
+            if(confirmed) {
+                if(type === 'gpu') {
+                    gpus += power;
+                    tg.showAlert(`GPU Purchased! Speed increased.`);
+                } else if(type === 'cool') {
+                    // +1 saat eklemek, artış hızını düşürmek demektir
+                    // Formül: coolingPower arttıkça ısı artışı yavaşlar
+                    coolingPower += (power * 0.5); 
+                    tg.showAlert(`Cooling Upgraded! Your rig stays cool longer.`);
+                }
+                updateUI();
+                saveUserData();
+            }
+        });
     }
 
     async function saveUserData() {
@@ -295,26 +330,15 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    telegramId: telegramId,
+                    telegramId,
                     balance: totalBalance,
-                    gpus: gpus,
-                    heat: heat,
-                    mined: currentMined
+                    gpus,
+                    heat,
+                    mined: currentMined,
+                    coolingPower
                 })
             });
         } catch (err) { console.error("Save error:", err); }
-    }
-
-    // Ekran kartı satın alma (Örn: gpus miktarını artırır)
-    function buyPremiumGPU(count) {
-        tg.showConfirm(`Buy ${count} GPU units?`, (confirmed) => {
-            if(confirmed) {
-                gpus += count;
-                tg.showAlert(`Purchased ${count} GPU units! Mining speed increased.`);
-                updateUI();
-                saveUserData();
-            }
-        });
     }
 
     loadUserData();
