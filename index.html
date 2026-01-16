@@ -84,7 +84,11 @@
         @keyframes rotate { 100% { transform: rotate(360deg); } }
 
         .mining-title { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 2px; color: var(--accent); }
-        .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 15px 0; text-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
+        .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 10px 0 5px 0; text-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
+        
+        /* Hız Göstergesi Stili */
+        .mining-speed { font-size: 13px; color: #94a3b8; margin-bottom: 15px; font-weight: bold; }
+        .mining-speed i { color: var(--neon-green); margin-right: 4px; }
 
         .btn-claim {
             background: linear-gradient(90deg, #10b981, #059669);
@@ -106,6 +110,7 @@
             border: 1px solid rgba(255,255,255,0.1); text-align: center;
         }
         .gpu-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
+        .gpu-hrate { font-size: 11px; color: var(--neon-green); margin: 5px 0; font-weight: bold; }
         .gpu-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
         .action-box {
@@ -140,6 +145,8 @@
     <div class="mining-main">
         <div class="mining-title">MINING ENGINE V2.0</div>
         <div id="mined-amount" class="mining-val">0.0000</div>
+        <div class="mining-speed"><i class="fas fa-bolt"></i> <span id="hourly-rate">0.00</span> COIN / HOUR</div>
+        
         <button class="btn-claim" onclick="claimMined()">CLAIM COINS</button>
         
         <div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px;">
@@ -159,16 +166,19 @@
         <div class="gpu-card" onclick="buyPremiumGPU(1)">
             <div class="gpu-icon">⚡</div>
             <div style="font-size: 14px;">GTX 1080</div>
+            <div class="gpu-hrate">+1.80/HR</div>
             <div class="gpu-price">$1.00</div>
         </div>
         <div class="gpu-card" onclick="buyPremiumGPU(10)">
             <div class="gpu-icon">💎</div>
             <div style="font-size: 14px;">RTX 3080</div>
+            <div class="gpu-hrate">+18.00/HR</div>
             <div class="gpu-price">$10.00</div>
         </div>
         <div class="gpu-card" onclick="buyPremiumGPU(50)">
             <div class="gpu-icon">🔥</div>
             <div style="font-size: 14px;">H100 AI</div>
+            <div class="gpu-hrate">+90.00/HR</div>
             <div class="gpu-price">$50.00</div>
         </div>
     </div>
@@ -207,7 +217,7 @@
     tg.headerColor = "#020617";
 
     let totalBalance = 0;
-    let currentMined = 0; // Kazılan miktar artık DB'den gelecek
+    let currentMined = 0; 
     let heat = 0;
     let gpus = 1;
     let affiliateBalance = 0;
@@ -225,7 +235,7 @@
             totalBalance = data.balance;
             gpus = data.gpus;
             heat = data.heat || 0;
-            currentMined = data.mined || 0; // SUNUCUDAN GELEN VERİYİ YÜKLE
+            currentMined = data.mined || 0;
             
             updateUI();
         } catch (err) { console.error("Data load error:", err); }
@@ -237,6 +247,10 @@
         document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
         document.getElementById('heat-bar').style.width = heat + '%';
         document.getElementById('affiliate-amount').innerText = affiliateBalance.toFixed(4) + " COIN";
+        
+        // Saatlik kazanç hesapla: (gpus * 0.0005) * 3600 saniye
+        let hourlyRate = (gpus * 0.0005) * 3600;
+        document.getElementById('hourly-rate').innerText = hourlyRate.toFixed(2);
     }
 
     // Oyun Döngüsü
@@ -252,10 +266,10 @@
     function claimMined() {
         if (currentMined > 0) {
             totalBalance += currentMined;
-            currentMined = 0; // Claim edilince sıfırla
+            currentMined = 0;
             tg.HapticFeedback.notificationOccurred('success');
             updateUI();
-            saveUserData(); // Sıfırlandığını sunucuya hemen bildir
+            saveUserData();
         } else {
             tg.showAlert("Mining engine is empty!");
         }
@@ -285,14 +299,26 @@
                     balance: totalBalance,
                     gpus: gpus,
                     heat: heat,
-                    mined: currentMined // KAZILAN MİKTARI SUNUCUYA GÖNDER
+                    mined: currentMined
                 })
             });
         } catch (err) { console.error("Save error:", err); }
     }
 
+    // Ekran kartı satın alma (Örn: gpus miktarını artırır)
+    function buyPremiumGPU(count) {
+        tg.showConfirm(`Buy ${count} GPU units?`, (confirmed) => {
+            if(confirmed) {
+                gpus += count;
+                tg.showAlert(`Purchased ${count} GPU units! Mining speed increased.`);
+                updateUI();
+                saveUserData();
+            }
+        });
+    }
+
     loadUserData();
-    setInterval(saveUserData, 15000); // 15 saniyede bir oto-save
+    setInterval(saveUserData, 15000);
 </script>
 </body>
 </html>
