@@ -46,24 +46,17 @@ app.get('/api/user/:id', async (req, res) => {
         const now = new Date();
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
         
-        // Isınma hızı frontend ile aynı olmalı: (0.18 / coolingPower)
         const heatPerSec = 0.18 / (user.coolingPower || 1);
 
         if (gapInSeconds > 0 && user.heat < 100) {
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
-            
-            // Maksimum ısıya ne kadar sürede ulaşır?
             const secondsUntilOverheat = heatNeededToMax / heatPerSec;
 
-            // Gerçek kazım süresi (Geçen süre veya cihazın ısınana kadar geçirdiği süre)
             const activeMiningSeconds = Math.min(gapInSeconds, secondsUntilOverheat);
-            
-            // Çevrimdışı kazanç hesabı
             const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
+            
             user.mined += offlineEarning;
-
-            // Isıyı yeni duruma göre güncelle
             user.heat = Math.min(100, currentHeat + (gapInSeconds * heatPerSec));
         }
 
@@ -75,27 +68,72 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
-// Verileri Kaydetme (Gelen coolingPower artık kaydediliyor)
+// Verileri Kaydetme
 app.post('/api/save', async (req, res) => {
     try {
-        // req.body içinden coolingPower'ı almayı unutmamalıyız!
         const { telegramId, balance, gpus, heat, mined, coolingPower } = req.body;
-        
         await User.findOneAndUpdate(
             { telegramId }, 
-            { 
-                balance, 
-                gpus, 
-                heat, 
-                mined,
-                coolingPower, // Burası artık boş gitmeyecek
-                lastUpdate: new Date() 
-            },
+            { balance, gpus, heat, mined, coolingPower, lastUpdate: new Date() },
             { upsert: true }
         );
         res.sendStatus(200);
     } catch (err) {
         res.status(500).send(err.message);
+    }
+});
+
+// --- YENİ: TELEGRAM STARS FATURA OLUŞTURMA ---
+app.post('/api/create-stars-invoice', async (req, res) => {
+    const { telegramId, type, power, starPrice, title } = req.body;
+
+    try {
+        // Telegram üzerinde fatura linki oluşturma
+        const invoiceUrl = await bot.telegram.createInvoiceLink({
+            title: `VoltFarm: ${title}`,
+            description: `${title} donanımı ile üretim gücünüzü artırın!`,
+            payload: JSON.stringify({ telegramId, type, power }), // Ödeme sonrası kontrol datası
+            provider_token: "", // Stars için boş bırakılır
+            currency: "XTR",     // XTR = Telegram Stars
+            prices: [{ label: title, amount: parseInt(starPrice) }]
+        });
+        
+        res.json({ invoiceUrl });
+    } catch (err) {
+        console.error("Fatura Hatası:", err);
+        res.status(500).json({ error: "Fatura oluşturulamadı." });
+    }
+});
+
+// --- YENİ: ÖDEME DOĞRULAMA (WEBHOOK) ---
+
+// 1. Ödeme öncesi onay (Pre-checkout)
+bot.on('pre_checkout_query', (ctx) => {
+    ctx.answerPreCheckoutQuery(true);
+});
+
+// 2. Ödeme tamamlandığında donanımı ver
+bot.on('successful_payment', async (ctx) => {
+    const payment = ctx.message.successful_payment;
+    const payload = JSON.parse(payment.invoice_payload);
+    const { telegramId, type, power } = payload;
+
+    try {
+        let user = await User.findOne({ telegramId });
+        if (user) {
+            if (type === 'gpu') {
+                user.gpus += power;
+            } else if (type === 'cool') {
+                user.coolingPower += (power * 6.5);
+            }
+            await user.save();
+            console.log(`ÖDEME ONAYLANDI: User ${telegramId}, ${type} +${power}`);
+            
+            // Kullanıcıya bot üzerinden de bilgi ver
+            await ctx.reply(`✅ Tebrikler! Satın aldığınız ${type.toUpperCase()} başarıyla kuruldu ve kazıma başladı.`);
+        }
+    } catch (err) {
+        console.error("Başarılı ödeme sonrası DB güncelleme hatası:", err);
     }
 });
 
@@ -110,7 +148,8 @@ bot.start((ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch();
+bot.launch().then(() => console.log("Telegram Bot Yayında! 🤖"));
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sunucu ${PORT} portunda aktif.`);
 });
