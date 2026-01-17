@@ -109,7 +109,7 @@
         .market-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
         .market-card {
             min-width: 140px; background: var(--card-bg); padding: 20px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center; cursor: pointer;
         }
         .market-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
         .market-benefit { font-size: 11px; margin: 5px 0; font-weight: bold; }
@@ -161,41 +161,41 @@
         </button>
     </div>
 
-    <div class="section-header"><i class="fas fa-shopping-cart"></i> PREMIUM HARDWARE (USD)</div>
+    <div class="section-header"><i class="fas fa-star"></i> HARDWARE SHOP (STARS)</div>
     <div class="market-scroll">
-        <div class="market-card" onclick="buyItem('gpu', 1, 1)">
+        <div class="market-card" onclick="buyItem('gpu', 1, 50, 'GTX 1080')">
             <div class="market-icon">⚡</div>
             <div style="font-size: 14px;">GTX 1080</div>
             <div class="market-benefit gpu-color">+1.80/HR</div>
-            <div class="market-price">$1.00</div>
+            <div class="market-price">⭐ 50</div>
         </div>
-        <div class="market-card" onclick="buyItem('gpu', 10, 10)">
+        <div class="market-card" onclick="buyItem('gpu', 10, 500, 'RTX 3080')">
             <div class="market-icon">💎</div>
             <div style="font-size: 14px;">RTX 3080</div>
             <div class="market-benefit gpu-color">+18.00/HR</div>
-            <div class="market-price">$10.00</div>
+            <div class="market-price">⭐ 500</div>
         </div>
-        <div class="market-card" onclick="buyItem('gpu', 50, 50)">
+        <div class="market-card" onclick="buyItem('gpu', 50, 2500, 'H100 AI')">
             <div class="market-icon">🔥</div>
             <div style="font-size: 14px;">H100 AI</div>
             <div class="market-benefit gpu-color">+90.00/HR</div>
-            <div class="market-price">$50.00</div>
+            <div class="market-price">⭐ 2500</div>
         </div>
     </div>
 
-    <div class="section-header"><i class="fas fa-fan"></i> COOLING UPGRADES (USD)</div>
+    <div class="section-header"><i class="fas fa-snowflake"></i> COOLING SHOP (STARS)</div>
     <div class="market-scroll">
-        <div class="market-card" onclick="buyItem('cool', 1, 1)">
+        <div class="market-card" onclick="buyItem('cool', 1, 50, 'Basic Fan')">
             <div class="market-icon">❄️</div>
             <div style="font-size: 14px;">Basic Fan</div>
             <div class="market-benefit cool-color">+1.0 Hour</div>
-            <div class="market-price">$1.00</div>
+            <div class="market-price">⭐ 50</div>
         </div>
-        <div class="market-card" onclick="buyItem('cool', 5.5, 5)">
+        <div class="market-card" onclick="buyItem('cool', 5.5, 250, 'Liquid Pro')">
             <div class="market-icon">🧊</div>
             <div style="font-size: 14px;">Liquid Pro</div>
             <div class="market-benefit cool-color">+5.5 Hours</div>
-            <div class="market-price">$5.00</div>
+            <div class="market-price">⭐ 250</div>
         </div>
     </div>
 
@@ -254,7 +254,6 @@
         let hourlyRate = (gpus * 0.0005) * 3600;
         document.getElementById('hourly-rate').innerText = hourlyRate.toFixed(2);
 
-        // Zaman Hesabı: Baz süre yaklaşık 9 dakika (555sn). CoolingPower çarpanı süreyi uzatır.
         let heatPerSec = 0.18 / coolingPower; 
         let secondsToFull = (100 - heat) / heatPerSec;
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
@@ -268,18 +267,36 @@
         updateUI();
     }, 1000);
 
-    function buyItem(type, power, price) {
-        tg.showConfirm(`Purchase for $${price}?`, async (confirmed) => {
+    // STARS ÖDEME SİSTEMİ
+    async function buyItem(type, power, starPrice, title) {
+        tg.showConfirm(`${title} donanımını ⭐ ${starPrice} Yıldız karşılığında satın almak istiyor musunuz?`, async (confirmed) => {
             if(confirmed) {
-                if(type === 'gpu') {
-                    gpus += power;
-                } else if(type === 'cool') {
-                    // +1 saat eklemek demek direnci arttırmak demek
-                    coolingPower += (power * 6.5); 
+                try {
+                    // Backend'den Stars faturası linki al
+                    const res = await fetch('/api/create-stars-invoice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ telegramId, type, power, starPrice, title })
+                    });
+                    const data = await res.json();
+
+                    if (data.invoiceUrl) {
+                        // Telegram'ın kendi ödeme penceresini açar
+                        tg.openInvoice(data.invoiceUrl, (status) => {
+                            if (status === 'paid') {
+                                tg.showAlert(`✅ Satın alım başarılı! ${title} aktif edildi.`);
+                                // Veriyi backend'den tazelemek için
+                                setTimeout(loadUserData, 1500);
+                            } else if (status === 'cancelled') {
+                                tg.showAlert("Ödeme iptal edildi.");
+                            } else {
+                                tg.showAlert("Ödeme işlemi başarısız.");
+                            }
+                        });
+                    }
+                } catch (err) {
+                    tg.showAlert("Ödeme servisi şu an meşgul, lütfen sonra deneyin.");
                 }
-                updateUI();
-                await saveUserData(); // Satın alma sonrası hemen kaydet
-                tg.showAlert(`Upgrade Successful!`);
             }
         });
     }
@@ -313,8 +330,14 @@
         } catch (err) { console.error("Save error:", err); }
     }
 
+    function inviteFriend() {
+        const botUrl = "https://t.me/SeninBotun_bot"; // Kendi bot linkinle değiştir
+        const inviteLink = `https://t.me/share/url?url=${botUrl}&text=Join my mining farm and earn coins!`;
+        tg.openTelegramLink(inviteLink);
+    }
+
     loadUserData();
-    setInterval(saveUserData, 20000); // Her 20 saniyede bir otomatik yedek
+    setInterval(saveUserData, 20000);
 </script>
 </body>
 </html>
