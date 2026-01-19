@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoltFarm Pro</title>
+    <title>VoltFarm Pro - GigaMine</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -122,7 +122,16 @@
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
         }
-        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; }
+        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+
+        /* Yeni Withdraw Stili */
+        .withdraw-input {
+            width: 90%; background: rgba(2, 6, 23, 0.5); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 12px; border-radius: 12px; margin-bottom: 15px;
+            font-family: 'Rajdhani'; text-align: center; font-size: 14px;
+        }
+        .withdraw-input:focus { outline: 1px solid var(--accent); }
+        .locked { filter: grayscale(1); opacity: 0.6; cursor: not-allowed !important; }
     </style>
 </head>
 <body>
@@ -159,6 +168,14 @@
         <button onclick="coolDown()" style="background: none; border: none; color: var(--cool-blue); margin-top: 15px; font-weight: bold; cursor: pointer;">
             <i class="fas fa-snowflake"></i> ACTIVATE COOLING
         </button>
+    </div>
+
+    <div class="section-header"><i class="fas fa-wallet"></i> SECURE WITHDRAWAL</div>
+    <div class="mining-main" style="padding: 20px; background: rgba(15, 23, 42, 0.8);">
+        <div id="withdraw-status" style="font-size: 12px; color: var(--danger); margin-bottom: 10px; font-weight: bold;">LOCKED: MIN 300 WLD REQUIRED</div>
+        <input type="text" id="wallet-address" class="withdraw-input" placeholder="Enter WLD Wallet Address (Optimism/ERC20)">
+        <button id="withdraw-btn" class="btn-claim locked" onclick="processWithdraw()">WITHDRAW NOW</button>
+        <div style="font-size: 11px; color: #64748b; margin-top: 10px;">Note: Manual verification takes 24-48 hours.</div>
     </div>
 
     <div class="section-header"><i class="fas fa-star"></i> HARDWARE SHOP (STARS)</div>
@@ -220,8 +237,6 @@
     let coolingPower = 1; 
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
-    // Temel ısınma hızı ayarı: 100 derece / (4 saat * 3600 saniye) = ~0.00694
-    // coolingPower 1 iken cihaz 4 saatte ısınır.
     const BASE_HEAT_RATE = 100 / (4 * 3600); 
 
     if(tg.initDataUnsafe.user) {
@@ -261,18 +276,70 @@
         let heatPerSec = BASE_HEAT_RATE / coolingPower; 
         let secondsToFull = (100 - heat) / heatPerSec;
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
+
+        // Withdraw Button Logic
+        const wBtn = document.getElementById('withdraw-btn');
+        const wStatus = document.getElementById('withdraw-status');
+        if (totalBalance >= 300) {
+            wBtn.classList.remove('locked');
+            wStatus.innerText = "ELIGIBLE FOR WITHDRAWAL";
+            wStatus.style.color = "var(--neon-green)";
+        } else {
+            wBtn.classList.add('locked');
+            wStatus.innerText = `LOCKED: NEED ${Math.ceil(300 - totalBalance)} MORE WLD`;
+            wStatus.style.color = "var(--danger)";
+        }
     }
 
     setInterval(() => {
         if (heat < 100) {
             currentMined += (gpus * 0.0005);
-            // Isınma hızı güncellendi (4 saat hedefli)
             heat = Math.min(100, heat + (BASE_HEAT_RATE / coolingPower));
         }
         updateUI();
     }, 1000);
 
-    // STARS ÖDEME SİSTEMİ
+    // Çekim İşlemi
+    function processWithdraw() {
+        if (totalBalance < 300) {
+            tg.showAlert("You need at least 300 WLD to withdraw!");
+            return;
+        }
+
+        const address = document.getElementById('wallet-address').value;
+        if (!address || address.length < 10) {
+            tg.showAlert("Please enter a valid wallet address!");
+            return;
+        }
+
+        // Sosyal Görev Onayı
+        tg.showConfirm("⚠️ FINAL STEP:\n\nTo prevent botting, you must share GigaMinebot to 20 friends and 5 groups.\n\nHave you completed these tasks?", async (confirmed) => {
+            if (confirmed) {
+                try {
+                    const res = await fetch('/api/withdraw', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ telegramId, address, amount: totalBalance })
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        tg.showAlert(`✅ REQUEST SENT!\n\n${totalBalance.toFixed(2)} WLD will be sent to your address after manual verification of your social shares.`);
+                        totalBalance = 0;
+                        updateUI();
+                        saveUserData();
+                    } else {
+                        tg.showAlert("Error: " + data.message);
+                    }
+                } catch (err) {
+                    tg.showAlert("Server busy. Please try again.");
+                }
+            } else {
+                inviteFriend(); // Paylaşıma yönlendir
+            }
+        });
+    }
+
     async function buyItem(type, power, starPrice, title) {
         tg.showConfirm(`${title} donanımını ⭐ ${starPrice} Yıldız karşılığında satın almak istiyor musunuz?`, async (confirmed) => {
             if(confirmed) {
@@ -289,15 +356,11 @@
                             if (status === 'paid') {
                                 tg.showAlert(`✅ Satın alım başarılı! ${title} aktif edildi.`);
                                 setTimeout(loadUserData, 1500);
-                            } else if (status === 'cancelled') {
-                                tg.showAlert("Ödeme iptal edildi.");
-                            } else {
-                                tg.showAlert("Ödeme işlemi başarısız.");
                             }
                         });
                     }
                 } catch (err) {
-                    tg.showAlert("Ödeme servisi şu an meşgul, lütfen sonra deneyin.");
+                    tg.showAlert("Ödeme servisi şu an meşgul.");
                 }
             }
         });
@@ -333,8 +396,8 @@
     }
 
     function inviteFriend() {
-        const botUrl = "https://t.me/SeninBotun_bot"; 
-        const inviteLink = `https://t.me/share/url?url=${botUrl}&text=Join my mining farm and earn WLD coins!`;
+        const botUrl = "https://t.me/GigaMinebot"; 
+        const inviteLink = `https://t.me/share/url?url=${botUrl}&text=🚀 I'm mining WLD COIN on GigaMine! Join now and get +1 WLD starting bonus! ⚡`;
         tg.openTelegramLink(inviteLink);
     }
 
