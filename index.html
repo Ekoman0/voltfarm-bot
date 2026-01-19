@@ -122,7 +122,6 @@
         .cool-color { color: var(--cool-blue); }
         .market-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
-        /* --- CÜZDAN PANELİ (BOTTOM SHEET) --- */
         #wallet-sheet {
             position: fixed; bottom: -100%; left: 0; width: 100%; height: 85vh;
             background: #0f172a; border-top: 2px solid var(--accent);
@@ -158,7 +157,6 @@
             background: rgba(0,0,0,0.7); display: none; z-index: 999;
         }
 
-        /* Adımlı Görünüm Ayarları */
         #withdraw-step-limit { display: block; }
         #withdraw-step-tasks { display: none; }
     </style>
@@ -250,39 +248,40 @@
             <h3 style="margin: 10px 0;">Minimum Limit Not Reached</h3>
             <p style="color: #94a3b8;">You need at least <b>300.00 WLD</b> to start the withdrawal process.</p>
             <div style="margin-top: 20px; font-size: 24px; color: var(--neon-gold); font-weight: bold;">
-                <span class="sheet-current-balance">0.00</span> / 300.00
+                <span id="sheet-current-balance-text">0.00</span> / 300.00
             </div>
         </div>
         <button class="btn-claim" style="margin-top: 30px; background: #334155;" onclick="toggleWallet()">CONTINUE MINING</button>
     </div>
 
     <div id="withdraw-step-tasks">
-        <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); margin: 0;">UNLOCKED!</h2>
-        <p style="color: #94a3b8; font-size: 14px;">Complete the final security verification tasks.</p>
+        <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); margin: 0;">WITHDRAWAL UNLOCKED!</h2>
+        <p style="color: #94a3b8; font-size: 14px;">Complete the security steps to release your 300+ WLD.</p>
 
         <label style="font-size: 12px; color: var(--neon-gold);">USDT TRC-20 ADDRESS</label>
         <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
 
         <div class="task-card">
-            <div class="task-row">
-                <span>Invite 20 Friends</span>
+            <div class="task-row" onclick="inviteFriend()" style="cursor:pointer">
+                <span><i class="fas fa-users"></i> Invite 20 Friends</span>
                 <span id="friends-count">0 / 20</span>
             </div>
             <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
 
-            <div class="task-row" style="margin-top: 15px;">
-                <span>Share in 5 Groups</span>
+            <div class="task-row" onclick="shareInGroups()" style="margin-top: 15px; cursor:pointer">
+                <span><i class="fas fa-share-nodes"></i> Share in 5 Groups</span>
                 <span id="groups-count">0 / 5</span>
             </div>
             <div class="progress-container"><div id="groups-bar" class="progress-fill"></div></div>
         </div>
 
-        <button class="btn-claim" style="margin-top: 20px; background: #2563eb;" onclick="inviteFriend()">
-            <i class="fas fa-user-plus"></i> INVITE & SHARE LINK
-        </button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+            <button class="btn-claim" style="font-size: 12px; padding: 12px;" onclick="inviteFriend()">INVITE FRIENDS</button>
+            <button class="btn-claim" style="font-size: 12px; padding: 12px; background: #8b5cf6;" onclick="shareInGroups()">SHARE GROUPS</button>
+        </div>
 
         <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">
-            PROCESS WITHDRAWAL
+            SEND WITHDRAWAL REQUEST
         </button>
     </div>
 </div>
@@ -321,7 +320,7 @@
         } else {
             stepLimit.style.display = 'block';
             stepTasks.style.display = 'none';
-            document.querySelector('.sheet-current-balance').innerText = totalBalance.toFixed(2);
+            document.getElementById('sheet-current-balance-text').innerText = totalBalance.toFixed(2);
         }
         updateWithdrawUI();
     }
@@ -335,6 +334,8 @@
             heat = data.heat || 0;
             currentMined = data.mined || 0;
             coolingPower = data.coolingPower || 1; 
+            inviteCount = data.invitedCount || 0;
+            groupShareCount = data.groupShares || 0;
             updateUI();
         } catch (err) { console.error("Data load error:", err); }
     }
@@ -381,6 +382,37 @@
         }
     }
 
+    // DAVET ETME FONKSİYONU - Çoklu seçim simülasyonu
+    function inviteFriend() {
+        const botUrl = "https://t.me/GigaMinebot"; 
+        const text = "🚀 WLD COIN Mining is LIVE! Join GigaMine and start earning for free! ⚡";
+        
+        // Telegram paylaşma penceresini açar
+        tg.openTelegramLink(`https://t.me/share/url?url=${botUrl}&text=${encodeURIComponent(text)}`);
+        
+        // Simülasyon: Paylaşım penceresinden döndüğünde (3 saniye sonra) 
+        // Kullanıcının birkaç kişiye gönderdiğini varsayarak sayacı artırırız.
+        setTimeout(() => {
+            const added = Math.floor(Math.random() * 3) + 1; // 1 ile 3 arası rastgele artış
+            inviteCount = Math.min(20, inviteCount + added);
+            updateWithdrawUI();
+            saveUserData();
+        }, 3000);
+    }
+
+    // GRUP PAYLAŞIMI FONKSİYONU
+    function shareInGroups() {
+        const botUrl = "https://t.me/GigaMinebot";
+        // Direkt grup seçme ekranını tetikleyen link formatı
+        tg.openTelegramLink(`https://t.me/share/url?url=${botUrl}&text=Check out this mining bot!`);
+        
+        setTimeout(() => {
+            if(groupShareCount < 5) groupShareCount++;
+            updateWithdrawUI();
+            saveUserData();
+        }, 3000);
+    }
+
     function processWithdraw() {
         const address = document.getElementById('wallet-address').value;
         if (totalBalance < 300) return;
@@ -405,22 +437,13 @@
                 if(data.success) {
                     tg.showAlert("Withdrawal request sent! It will be processed after verification.");
                     totalBalance = 0;
+                    inviteCount = 0; // İsteğe bağlı sıfırlama
+                    groupShareCount = 0;
                     updateUI();
                     toggleWallet();
                 }
             }
         });
-    }
-
-    function inviteFriend() {
-        const botUrl = "https://t.me/GigaMinebot"; 
-        const inviteLink = `https://t.me/share/url?url=${botUrl}&text=🚀 WLD COIN Mining is LIVE! Join GigaMine and start earning for free! ⚡`;
-        tg.openTelegramLink(inviteLink);
-        
-        // Simülasyon: Paylaşım butonuna her tıklandığında görevleri ilerletiyoruz
-        if(inviteCount < 20) inviteCount++;
-        if(groupShareCount < 5 && inviteCount > 3) groupShareCount++;
-        updateWithdrawUI();
     }
 
     setInterval(() => {
@@ -454,7 +477,14 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, coolingPower
+                    telegramId, 
+                    balance: totalBalance, 
+                    gpus, 
+                    heat, 
+                    mined: currentMined, 
+                    coolingPower,
+                    inviteCount: inviteCount,
+                    groupShareCount: groupShareCount
                 })
             });
         } catch (err) { console.error("Save error:", err); }
