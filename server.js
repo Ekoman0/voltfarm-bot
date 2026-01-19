@@ -35,7 +35,7 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
-// Kullanıcı verilerini getirme
+// Kullanıcı verilerini getirme (Çevrimdışı Kazanç Hesaplamalı)
 app.get('/api/user/:id', async (req, res) => {
     try {
         let user = await User.findOne({ telegramId: req.params.id });
@@ -102,23 +102,20 @@ app.post('/api/withdraw', async (req, res) => {
             return res.status(400).json({ success: false, message: "Yetersiz bakiye! Minimum 300 WLD gereklidir." });
         }
 
-        // ÖNEMLİ: Çekim talebi kaydı (Terminaline düşer)
+        // Çekim talebi kaydı (Terminaline düşer)
         console.log(`
         ======= 💸 YENİ ÇEKİM TALEBİ (GigaMine) =======
         KULLANICI ID : ${telegramId}
         MİKTAR       : ${amount.toFixed(2)} WLD
         CÜZDAN ADRESİ: ${address}
+        TİP          : USDT TRC-20
         TARİH        : ${new Date().toLocaleString('tr-TR')}
         ==============================================
         `);
 
-        // Kullanıcı bakiyesini sıfırla
+        // Kullanıcı bakiyesini sıfırla (Güvenlik için önce sıfırlıyoruz)
         user.balance = 0;
         await user.save();
-
-        // Admin'e (sana) Telegram üzerinden de bildirim gönderelim (İsteğe bağlı)
-        // Bunun çalışması için senin Telegram ID'ni bilmemiz gerekir.
-        // bot.telegram.sendMessage('SENIN_ID', `🚨 Çekim Talebi!\nID: ${telegramId}\nMiktar: ${amount} WLD\nAdres: ${address}`);
 
         res.json({ success: true });
     } catch (err) {
@@ -133,8 +130,8 @@ app.post('/api/create-stars-invoice', async (req, res) => {
 
     try {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
-            title: `GigaMine: ${title}`,
-            description: `${title} ile WLD COIN üretim gücünüzü artırın!`,
+            title: `GigaMine Upgrade: ${title}`,
+            description: `${title} ile üretim gücünüzü artırın!`,
             payload: JSON.stringify({ telegramId, type, power, title }),
             provider_token: "", 
             currency: "XTR", 
@@ -164,12 +161,12 @@ bot.on('successful_payment', async (ctx) => {
             if (type === 'gpu') {
                 user.gpus += power;
             } else if (type === 'cool') {
-                user.coolingPower += (power * 4.0); 
+                user.coolingPower += (power * 1.0); // Arayüzdeki katlamalı soğutma gücüyle uyumlu
             }
             await user.save();
-            console.log(`ÖDEME ONAYLANDI: User ${telegramId}, ${type} +${power}`);
+            console.log(`ÖDEME ONAYLANDI: User ${telegramId}, ${title} (+${power})`);
             
-            await ctx.reply(`✅ Tebrikler! Satın aldığınız ${title || type.toUpperCase()} başarıyla kuruldu ve WLD COIN kazımı hızlandı.`);
+            await ctx.reply(`✅ Tebrikler! ${title} başarıyla kuruldu. Kazım performansınız güncellendi.`);
         }
     } catch (err) {
         console.error("Başarılı ödeme sonrası DB güncelleme hatası:", err);
@@ -178,7 +175,7 @@ bot.on('successful_payment', async (ctx) => {
 
 // 4. BOT KOMUTLARI
 bot.start((ctx) => {
-    ctx.reply(`🚀 GigaMinebot'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 300 WLD biriktir ve çekim talebi gönder!`, 
+    ctx.reply(`🚀 GigaMine Pro'ya Hoş Geldin!\n\nSen uyurken bile GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 Minimum çekim: 300 WLD\n💎 Cüzdan panelini sağ üstteki bakiye kısmından açabilirsin!`, 
         Markup.inlineKeyboard([
             [Markup.button.webApp('🎮 Madenciliği Başlat', WEBAPP_URL)]
         ])
@@ -187,13 +184,13 @@ bot.start((ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("GigaMinebot WLD COIN Sürümü Yayında! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot API & Bot Aktif! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sunucu ${PORT} portunda aktif.`);
 });
 
-// Sunucuyu uyandırma döngüsü
+// Sunucuyu uyandırma döngüsü (Opsiyonel)
 setInterval(() => {
     if(WEBAPP_URL) axios.get(WEBAPP_URL).catch(() => {});
 }, 600000);
