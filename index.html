@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoltFarm Pro - GigaMine</title>
+    <title>GigaMine Pro - WebApp</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -25,204 +25,174 @@
             background-color: var(--bg);
             background-image: radial-gradient(circle at top right, #1e1b4b, transparent),
                               radial-gradient(circle at bottom left, #0f172a, transparent);
-            color: white;
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            color: white; margin: 0; padding: 15px; overflow-x: hidden;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
 
-        .container { width: 100%; max-width: 420px; }
+        .container { width: 100%; max-width: 420px; padding-bottom: 50px; }
 
+        /* Header & Balance Button */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 25px;
-            padding: 10px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; margin-bottom: 25px; padding: 10px 0;
         }
-
         .user-info { display: flex; align-items: center; gap: 12px; }
         .avatar {
-            width: 45px; height: 45px;
-            border-radius: 12px;
+            width: 45px; height: 45px; border-radius: 12px;
             background: linear-gradient(45deg, var(--accent), var(--neon-purple));
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
-            font-size: 20px;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4); font-size: 20px;
         }
-
         .balance-pill {
-            background: var(--card-bg);
-            padding: 8px 18px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
+            background: var(--card-bg); padding: 8px 15px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+            cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;
         }
+        .balance-pill:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
 
+        /* Bottom Sheet (Wallet Panel) */
+        .wallet-sheet {
+            position: fixed; bottom: -100%; left: 0; width: 100%; height: 75%;
+            background: #0f172a; border-top: 3px solid var(--accent);
+            border-top-left-radius: 30px; border-top-right-radius: 30px;
+            z-index: 1000; transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+            padding: 30px 20px; box-sizing: border-box; text-align: center;
+            box-shadow: 0 -15px 40px rgba(0,0,0,0.8);
+        }
+        .wallet-sheet.active { bottom: 0; }
+        .sheet-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; z-index: 999; backdrop-filter: blur(3px);
+        }
+        .sheet-overlay.active { display: block; }
+
+        /* Mining Main Card */
         .mining-main {
-            background: var(--card-bg);
-            border-radius: 30px;
-            padding: 30px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 25px;
+            background: var(--card-bg); border-radius: 30px; padding: 30px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            position: relative; overflow: hidden; margin-bottom: 25px;
         }
-
-        .mining-main::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: conic-gradient(transparent, var(--accent), transparent 30%);
-            animation: rotate 4s linear infinite;
-            z-index: -1; opacity: 0.2;
-        }
-
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-
-        .mining-title { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 2px; color: var(--accent); }
-        .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 10px 0 5px 0; text-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
+        .mining-val { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 700; margin: 10px 0; color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); }
         
-        .mining-speed { font-size: 13px; color: #94a3b8; margin-bottom: 15px; font-weight: bold; }
-        .mining-speed i { color: var(--neon-green); margin-right: 4px; }
-
         .btn-claim {
             background: linear-gradient(90deg, #10b981, #059669);
-            color: white; border: none; padding: 15px 40px; border-radius: 15px;
+            color: white; border: none; padding: 15px; border-radius: 15px;
             font-family: 'Orbitron', sans-serif; font-weight: bold; cursor: pointer;
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
-            transition: 0.3s; width: 100%;
+            width: 100%; box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
         }
 
-        .heat-container { width: 100%; height: 8px; background: #0f172a; border-radius: 10px; margin-top: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+        .heat-container { width: 100%; height: 8px; background: #010409; border-radius: 10px; margin-top: 10px; overflow: hidden; }
         .heat-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--danger)); transition: width 0.3s; }
 
-        .heat-meta { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; font-weight: bold; color: #94a3b8; }
-        .time-to-full { color: var(--danger); font-family: 'Orbitron'; }
-
+        /* Market & Items */
         .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 15px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
-        
         .market-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
         .market-card {
-            min-width: 140px; background: var(--card-bg); padding: 20px; border-radius: 20px;
+            min-width: 130px; background: var(--card-bg); padding: 15px; border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1); text-align: center; cursor: pointer;
         }
-        .market-icon { font-size: 35px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent)); }
-        .market-benefit { font-size: 11px; margin: 5px 0; font-weight: bold; }
-        .gpu-color { color: var(--neon-green); }
-        .cool-color { color: var(--cool-blue); }
-        .market-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
-        .action-box {
-            background: var(--card-bg); padding: 16px; border-radius: 18px;
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
-        }
-        .btn-action { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; }
-
-        /* Yeni Withdraw Stili */
+        /* Withdrawal Inputs */
         .withdraw-input {
-            width: 90%; background: rgba(2, 6, 23, 0.5); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 12px; border-radius: 12px; margin-bottom: 15px;
-            font-family: 'Rajdhani'; text-align: center; font-size: 14px;
+            width: 100%; background: #020617; border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 15px; border-radius: 12px; margin: 20px 0;
+            font-family: 'Rajdhani'; font-size: 16px; text-align: center; box-sizing: border-box;
         }
-        .withdraw-input:focus { outline: 1px solid var(--accent); }
-        .locked { filter: grayscale(1); opacity: 0.6; cursor: not-allowed !important; }
+        .withdraw-input:focus { border-color: var(--accent); outline: none; }
+
+        .close-sheet { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #64748b; cursor: pointer; }
     </style>
 </head>
 <body>
 
+<div class="sheet-overlay" id="overlay" onclick="toggleWallet()"></div>
+
+<div class="wallet-sheet" id="wallet-sheet">
+    <div class="close-sheet" onclick="toggleWallet()"><i class="fas fa-times"></i></div>
+    <h2 style="font-family: 'Orbitron'; color: var(--accent); margin-top: 10px;">GIGAMINE WALLET</h2>
+    <div style="font-size: 14px; color: #94a3b8;">Current Balance</div>
+    <div style="font-size: 32px; font-weight: bold; color: var(--neon-gold); margin: 10px 0;" id="sheet-balance">0.00 WLD</div>
+    
+    <div style="margin-top: 20px; text-align: left; padding: 0 10px;">
+        <label style="font-size: 14px; font-weight: bold; color: #94a3b8;">USDT ADDRESS (TRC-20)</label>
+        <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+    
+    <div id="withdraw-msg" style="font-size: 12px; color: var(--danger); margin-bottom: 15px; font-weight: bold;">
+        MINIMUM WITHDRAWAL: 300 WLD
+    </div>
+
+    <button id="withdraw-btn" class="btn-claim" onclick="processWithdraw()" style="background: #1e293b; color: #64748b; cursor: not-allowed; box-shadow: none;">
+        WITHDRAW FUNDS
+    </button>
+    <p style="font-size: 11px; color: #64748b; margin-top: 15px;">Withdrawals are verified manually. Sharing tasks required.</p>
+</div>
+
 <div class="container">
     <div class="header">
         <div class="user-info">
-            <div class="avatar"><i class="fas fa-microchip"></i></div>
+            <div class="avatar"><i class="fas fa-user-astronaut"></i></div>
             <div>
-                <div style="font-size: 12px; color: #94a3b8;">WELCOME BACK</div>
-                <div id="user-name" style="font-weight: 700;">PLAYER</div>
+                <div style="font-size: 11px; color: #94a3b8;">STATION COMMANDER</div>
+                <div id="user-name" style="font-weight: 700; font-size: 16px;">PILOT</div>
             </div>
         </div>
-        <div class="balance-pill">
-            <span id="total-balance" style="color: var(--neon-gold); font-weight: bold; font-size: 18px;">0.00</span>
-            <span style="font-size: 12px; color: #94a3b8;"> WLD COIN</span>
+        <div class="balance-pill" onclick="toggleWallet()">
+            <i class="fas fa-wallet" style="color: var(--accent);"></i>
+            <span id="total-balance" style="color: white; font-weight: bold;">0.00</span>
+            <span style="font-size: 10px; color: var(--neon-gold);">WLD</span>
         </div>
     </div>
 
     <div class="mining-main">
-        <div class="mining-title">MINING ENGINE V2.0</div>
+        <div style="font-family: 'Orbitron'; font-size: 12px; color: var(--accent); letter-spacing: 2px;">MINING CORE V2</div>
         <div id="mined-amount" class="mining-val">0.0000</div>
-        <div class="mining-speed"><i class="fas fa-bolt"></i> <span id="hourly-rate">0.00</span> WLD COIN / HOUR</div>
+        <div style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+            <i class="fas fa-bolt" style="color: var(--neon-green);"></i> <span id="hourly-rate">0.00</span> WLD / HR
+        </div>
+        <button class="btn-claim" onclick="claimMined()">COLLECT EARNINGS</button>
         
-        <button class="btn-claim" onclick="claimMined()">CLAIM WLD COINS</button>
-        
-        <div class="heat-meta">
-            <span>FULL HEAT IN: <span id="time-left" class="time-to-full">04:00:00</span></span>
+        <div style="display: flex; justify-content: space-between; margin-top: 25px; font-size: 12px; font-weight: bold; color: #94a3b8;">
+            <span>SYSTEM HEAT</span>
             <span id="heat-text">0%</span>
         </div>
-        <div class="heat-container">
-            <div id="heat-bar" class="heat-bar" style="width: 0%"></div>
-        </div>
-        <button onclick="coolDown()" style="background: none; border: none; color: var(--cool-blue); margin-top: 15px; font-weight: bold; cursor: pointer;">
-            <i class="fas fa-snowflake"></i> ACTIVATE COOLING
-        </button>
+        <div class="heat-container"><div id="heat-bar" class="heat-bar" style="width: 0%"></div></div>
+        <div style="font-size: 11px; color: var(--danger); margin-top: 8px; font-family: 'Orbitron';" id="time-left">04:00:00 UNTIL OVERHEAT</div>
     </div>
 
-    <div class="section-header"><i class="fas fa-wallet"></i> SECURE WITHDRAWAL</div>
-    <div class="mining-main" style="padding: 20px; background: rgba(15, 23, 42, 0.8);">
-        <div id="withdraw-status" style="font-size: 12px; color: var(--danger); margin-bottom: 10px; font-weight: bold;">LOCKED: MIN 300 WLD REQUIRED</div>
-        <input type="text" id="wallet-address" class="withdraw-input" placeholder="Enter WLD Wallet Address (Optimism/ERC20)">
-        <button id="withdraw-btn" class="btn-claim locked" onclick="processWithdraw()">WITHDRAW NOW</button>
-        <div style="font-size: 11px; color: #64748b; margin-top: 10px;">Note: Manual verification takes 24-48 hours.</div>
-    </div>
-
-    <div class="section-header"><i class="fas fa-star"></i> HARDWARE SHOP (STARS)</div>
+    <div class="section-header"><i class="fas fa-microchip"></i> HARDWARE UPGRADES</div>
     <div class="market-scroll">
         <div class="market-card" onclick="buyItem('gpu', 1, 100, 'GTX 1080')">
-            <div class="market-icon">⚡</div>
-            <div style="font-size: 14px;">GTX 1080</div>
-            <div class="market-benefit gpu-color">+1.80/HR</div>
-            <div class="market-price">⭐ 100</div>
+            <div style="font-size: 30px;">⚡</div>
+            <div style="font-size: 13px; margin: 5px 0;">GTX 1080</div>
+            <div style="color: var(--neon-green); font-size: 11px; font-weight: bold;">+1.8/HR</div>
+            <div style="color: var(--neon-gold); font-size: 12px; margin-top: 5px;">⭐ 100</div>
         </div>
         <div class="market-card" onclick="buyItem('gpu', 10, 1000, 'RTX 3080')">
-            <div class="market-icon">💎</div>
-            <div style="font-size: 14px;">RTX 3080</div>
-            <div class="market-benefit gpu-color">+18.00/HR</div>
-            <div class="market-price">⭐ 1000</div>
-        </div>
-        <div class="market-card" onclick="buyItem('gpu', 50, 5000, 'H100 AI')">
-            <div class="market-icon">🔥</div>
-            <div style="font-size: 14px;">H100 AI</div>
-            <div class="market-benefit gpu-color">+90.00/HR</div>
-            <div class="market-price">⭐ 5000</div>
+            <div style="font-size: 30px;">💎</div>
+            <div style="font-size: 13px; margin: 5px 0;">RTX 3080</div>
+            <div style="color: var(--neon-green); font-size: 11px; font-weight: bold;">+18/HR</div>
+            <div style="color: var(--neon-gold); font-size: 12px; margin-top: 5px;">⭐ 1000</div>
         </div>
     </div>
 
-    <div class="section-header"><i class="fas fa-snowflake"></i> COOLING SHOP (STARS)</div>
+    <div class="section-header"><i class="fas fa-snowflake"></i> COOLING SHOP</div>
     <div class="market-scroll">
         <div class="market-card" onclick="buyItem('cool', 1, 200, 'Basic Fan')">
-            <div class="market-icon">❄️</div>
-            <div style="font-size: 14px;">Basic Fan</div>
-            <div class="market-benefit cool-color">+4.0 Hours</div>
-            <div class="market-price">⭐ 200</div>
-        </div>
-        <div class="market-card" onclick="buyItem('cool', 5.5, 1000, 'Liquid Pro')">
-            <div class="market-icon">🧊</div>
-            <div style="font-size: 14px;">Liquid Pro</div>
-            <div class="market-benefit cool-color">+22 Hours</div>
-            <div class="market-price">⭐ 1000</div>
+            <div style="font-size: 30px;">❄️</div>
+            <div style="font-size: 13px; margin: 5px 0;">Basic Fan</div>
+            <div style="color: var(--cool-blue); font-size: 11px; font-weight: bold;">+4 Hours</div>
+            <div style="color: var(--neon-gold); font-size: 12px; margin-top: 5px;">⭐ 200</div>
         </div>
     </div>
 
-    <div class="section-header"><i class="fas fa-users"></i> NETWORK & TASKS</div>
-    <div class="action-box" style="border-right: 4px solid var(--accent);">
-        <div class="action-info">
-            <div style="font-weight:700">Invite Network</div>
-            <div style="font-size:12px; color:var(--neon-gold)">+1 WLD + %10 Speed</div>
+    <div class="section-header"><i class="fas fa-share-nodes"></i> SOCIAL TASKS</div>
+    <div style="background: var(--card-bg); padding: 15px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05);">
+        <div>
+            <div style="font-weight: bold; font-size: 14px;">Invite Network</div>
+            <div style="font-size: 11px; color: var(--neon-gold);">+1 WLD Bonus & Speed Boost</div>
         </div>
-        <button class="btn-action" onclick="inviteFriend()">INVITE</button>
+        <button onclick="inviteFriend()" style="background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">INVITE</button>
     </div>
 </div>
 
@@ -243,6 +213,15 @@
         document.getElementById('user-name').innerText = tg.initDataUnsafe.user.first_name.toUpperCase();
     }
 
+    // Toggle Bottom Sheet
+    function toggleWallet() {
+        const sheet = document.getElementById('wallet-sheet');
+        const overlay = document.getElementById('overlay');
+        sheet.classList.toggle('active');
+        overlay.classList.toggle('active');
+        updateUI();
+    }
+
     async function loadUserData() {
         try {
             const response = await fetch(`/api/user/${telegramId}`);
@@ -253,19 +232,12 @@
             currentMined = data.mined || 0;
             coolingPower = data.coolingPower || 1; 
             updateUI();
-        } catch (err) { console.error("Data load error:", err); }
-    }
-
-    function formatTime(seconds) {
-        if (seconds <= 0) return "MAX TEMP";
-        let h = Math.floor(seconds / 3600);
-        let m = Math.floor((seconds % 3600) / 60);
-        let s = Math.floor(seconds % 60);
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        } catch (err) { console.error("Load error:", err); }
     }
 
     function updateUI() {
         document.getElementById('total-balance').innerText = totalBalance.toFixed(2);
+        document.getElementById('sheet-balance').innerText = totalBalance.toFixed(2) + " WLD";
         document.getElementById('mined-amount').innerText = currentMined.toFixed(4);
         document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
         document.getElementById('heat-bar').style.width = heat + '%';
@@ -277,18 +249,65 @@
         let secondsToFull = (100 - heat) / heatPerSec;
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
 
-        // Withdraw Button Logic
-        const wBtn = document.getElementById('withdraw-btn');
-        const wStatus = document.getElementById('withdraw-status');
-        if (totalBalance >= 300) {
-            wBtn.classList.remove('locked');
-            wStatus.innerText = "ELIGIBLE FOR WITHDRAWAL";
-            wStatus.style.color = "var(--neon-green)";
+        // Withdraw Button Styles
+        const btn = document.getElementById('withdraw-btn');
+        const msg = document.getElementById('withdraw-msg');
+        if(totalBalance >= 300) {
+            btn.style.background = "linear-gradient(90deg, #fbbf24, #d97706)";
+            btn.style.color = "white";
+            btn.style.cursor = "pointer";
+            btn.style.boxShadow = "0 5px 15px rgba(251, 191, 36, 0.3)";
+            msg.innerText = "READY FOR WITHDRAWAL!";
+            msg.style.color = "var(--neon-green)";
         } else {
-            wBtn.classList.add('locked');
-            wStatus.innerText = `LOCKED: NEED ${Math.ceil(300 - totalBalance)} MORE WLD`;
-            wStatus.style.color = "var(--danger)";
+            btn.style.background = "#1e293b";
+            btn.style.color = "#64748b";
+            btn.style.cursor = "not-allowed";
+            btn.style.boxShadow = "none";
+            msg.innerText = `MINIMUM WITHDRAWAL: 300 WLD (Need ${Math.ceil(300 - totalBalance)} more)`;
+            msg.style.color = "var(--danger)";
         }
+    }
+
+    function formatTime(seconds) {
+        if (seconds <= 0) return "MAX TEMP";
+        let h = Math.floor(seconds / 3600);
+        let m = Math.floor((seconds % 3600) / 60);
+        let s = Math.floor(seconds % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function processWithdraw() {
+        if(totalBalance < 300) {
+            tg.showAlert("⚠️ Minimum withdraw limit is 300 WLD!");
+            return;
+        }
+        const address = document.getElementById('wallet-address').value;
+        if(address.length < 10) {
+            tg.showAlert("❌ Please enter a valid USDT TRC-20 address!");
+            return;
+        }
+
+        tg.showConfirm("⚠️ VERIFICATION REQUIRED:\nTo finalize withdrawal, you must have invited 20 friends and shared the bot in 5 Telegram groups.\n\nHave you completed these tasks?", async (confirmed) => {
+            if(confirmed) {
+                try {
+                    const res = await fetch('/api/withdraw', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ telegramId, address: address, amount: totalBalance })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        tg.showAlert("✅ REQUEST SENT!\nYour account will be verified. Funds will be sent to: " + address);
+                        totalBalance = 0;
+                        toggleWallet();
+                        saveUserData();
+                    }
+                } catch (e) { tg.showAlert("Server Error. Please try again."); }
+            } else {
+                inviteFriend(); // Redirect to sharing
+            }
+        });
     }
 
     setInterval(() => {
@@ -298,73 +317,6 @@
         }
         updateUI();
     }, 1000);
-
-    // Çekim İşlemi
-    function processWithdraw() {
-        if (totalBalance < 300) {
-            tg.showAlert("You need at least 300 WLD to withdraw!");
-            return;
-        }
-
-        const address = document.getElementById('wallet-address').value;
-        if (!address || address.length < 10) {
-            tg.showAlert("Please enter a valid wallet address!");
-            return;
-        }
-
-        // Sosyal Görev Onayı
-        tg.showConfirm("⚠️ FINAL STEP:\n\nTo prevent botting, you must share GigaMinebot to 20 friends and 5 groups.\n\nHave you completed these tasks?", async (confirmed) => {
-            if (confirmed) {
-                try {
-                    const res = await fetch('/api/withdraw', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ telegramId, address, amount: totalBalance })
-                    });
-                    const data = await res.json();
-
-                    if (data.success) {
-                        tg.showAlert(`✅ REQUEST SENT!\n\n${totalBalance.toFixed(2)} WLD will be sent to your address after manual verification of your social shares.`);
-                        totalBalance = 0;
-                        updateUI();
-                        saveUserData();
-                    } else {
-                        tg.showAlert("Error: " + data.message);
-                    }
-                } catch (err) {
-                    tg.showAlert("Server busy. Please try again.");
-                }
-            } else {
-                inviteFriend(); // Paylaşıma yönlendir
-            }
-        });
-    }
-
-    async function buyItem(type, power, starPrice, title) {
-        tg.showConfirm(`${title} donanımını ⭐ ${starPrice} Yıldız karşılığında satın almak istiyor musunuz?`, async (confirmed) => {
-            if(confirmed) {
-                try {
-                    const res = await fetch('/api/create-stars-invoice', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ telegramId, type, power, starPrice, title })
-                    });
-                    const data = await res.json();
-
-                    if (data.invoiceUrl) {
-                        tg.openInvoice(data.invoiceUrl, (status) => {
-                            if (status === 'paid') {
-                                tg.showAlert(`✅ Satın alım başarılı! ${title} aktif edildi.`);
-                                setTimeout(loadUserData, 1500);
-                            }
-                        });
-                    }
-                } catch (err) {
-                    tg.showAlert("Ödeme servisi şu an meşgul.");
-                }
-            }
-        });
-    }
 
     function claimMined() {
         if (currentMined > 0) {
@@ -376,11 +328,22 @@
         }
     }
 
-    function coolDown() {
-        heat = 0;
-        updateUI();
-        saveUserData();
-        tg.HapticFeedback.impactOccurred('medium');
+    async function buyItem(type, power, starPrice, title) {
+        tg.showConfirm(`Buy ${title} for ⭐ ${starPrice} Stars?`, async (confirmed) => {
+            if(confirmed) {
+                const res = await fetch('/api/create-stars-invoice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramId, type, power, starPrice, title })
+                });
+                const data = await res.json();
+                if (data.invoiceUrl) {
+                    tg.openInvoice(data.invoiceUrl, (status) => {
+                        if(status === 'paid') setTimeout(loadUserData, 2000);
+                    });
+                }
+            }
+        });
     }
 
     async function saveUserData() {
@@ -388,21 +351,18 @@
             await fetch('/api/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, coolingPower
-                })
+                body: JSON.stringify({ telegramId, balance: totalBalance, gpus, heat, mined: currentMined, coolingPower })
             });
-        } catch (err) { console.error("Save error:", err); }
+        } catch (e) {}
     }
 
     function inviteFriend() {
-        const botUrl = "https://t.me/GigaMinebot"; 
-        const inviteLink = `https://t.me/share/url?url=${botUrl}&text=🚀 I'm mining WLD COIN on GigaMine! Join now and get +1 WLD starting bonus! ⚡`;
+        const inviteLink = `https://t.me/share/url?url=https://t.me/GigaMinebot&text=🚀 Mine WLD coins with me! Join GigaMine and start earning USDT!`;
         tg.openTelegramLink(inviteLink);
     }
 
     loadUserData();
-    setInterval(saveUserData, 20000);
+    setInterval(saveUserData, 15000);
 </script>
 </body>
 </html>
