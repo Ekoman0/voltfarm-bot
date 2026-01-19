@@ -25,8 +25,7 @@ const userSchema = new mongoose.Schema({
     coolingPower: { type: Number, default: 1 }, // Soğutma gücü
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now },
-    // Frontend'deki inviteCount ve groupShareCount ile eşleşen alanlar
-    invitedCount: { type: Number, default: 0 },
+    invitedCount: { type: Number, default: 0 }, // Gerçek referans sayısı
     groupShares: { type: Number, default: 0 }
 });
 const User = mongoose.model('User', userSchema);
@@ -84,8 +83,8 @@ app.post('/api/save', async (req, res) => {
                 heat, 
                 mined,
                 coolingPower,
-                invitedCount: inviteCount,     // Frontend'den gelen inviteCount
-                groupShares: groupShareCount,  // Frontend'den gelen groupShareCount
+                invitedCount: inviteCount,     // Veritabanındaki gerçek sayıyı korumak için frontend'den gelenle güncellenir
+                groupShares: groupShareCount,
                 lastUpdate: new Date() 
             },
             { upsert: true }
@@ -103,27 +102,26 @@ app.post('/api/withdraw', async (req, res) => {
     try {
         const user = await User.findOne({ telegramId });
 
-        // Şartlar: 300 WLD + 20 Davet + 5 Grup Paylaşımı
+        // Şartlar: 300 WLD + 10 Gerçek Davet + 5 Grup Paylaşımı
         if (!user || user.balance < 300) {
             return res.status(400).json({ success: false, message: "Limit Not Reached! Min 300 WLD required." });
         }
         
-        if (user.invitedCount < 20 || user.groupShares < 5) {
-            return res.status(400).json({ success: false, message: "Tasks not completed! 20 invites and 5 shares required." });
+        if (user.invitedCount < 10 || user.groupShares < 5) {
+            return res.status(400).json({ success: false, message: "Tasks not completed! 10 invites and 5 shares required." });
         }
 
-        // Çekim talebi kaydı (Terminalde görünür)
+        // Çekim talebi kaydı
         console.log(`
         ======= 💸 NEW WITHDRAWAL REQUEST (GigaMine) =======
         USER ID      : ${telegramId}
         AMOUNT       : ${amount.toFixed(2)} WLD
         WALLET ADDR  : ${address}
-        TASKS STATUS : ${user.invitedCount}/20 Invites - ${user.groupShares}/5 Groups
+        TASKS STATUS : ${user.invitedCount}/10 Invites - ${user.groupShares}/5 Groups
         DATE         : ${new Date().toLocaleString('tr-TR')}
         ====================================================
         `);
 
-        // Kullanıcı bakiyesini sıfırla
         user.balance = 0;
         await user.save();
 
@@ -168,11 +166,8 @@ bot.on('successful_payment', async (ctx) => {
     try {
         let user = await User.findOne({ telegramId });
         if (user) {
-            if (type === 'gpu') {
-                user.gpus += power;
-            } else if (type === 'cool') {
-                user.coolingPower += (power * 4.0); 
-            }
+            if (type === 'gpu') user.gpus += power;
+            else if (type === 'cool') user.coolingPower += (power * 4.0); 
             await user.save();
             await ctx.reply(`✅ Purchase Successful! ${title || type.toUpperCase()} has been installed.`);
         }
@@ -181,18 +176,44 @@ bot.on('successful_payment', async (ctx) => {
     }
 });
 
-// 4. BOT KOMUTLARI
-bot.start((ctx) => {
-    ctx.reply(`🚀 Welcome to GigaMine!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔥 Collect 300 WLD, invite 20 friends, and share in 5 groups to withdraw!`, 
-        Markup.inlineKeyboard([
-            [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)]
-        ])
-    );
+// 4. BOT KOMUTLARI & REFERANS SİSTEMİ
+bot.start(async (ctx) => {
+    const telegramId = ctx.from.id;
+    const startPayload = ctx.payload; // t.me/GigaMinebot?start=123456 linkindeki 123456 kısmı
+
+    try {
+        let user = await User.findOne({ telegramId });
+        
+        if (!user) {
+            // Yeni kullanıcı kaydı
+            user = await User.create({ telegramId });
+
+            // Eğer bir referans linkiyle gelmişse ve kendini davet etmiyorsa
+            if (startPayload && !isNaN(startPayload) && parseInt(startPayload) !== telegramId) {
+                const inviterId = parseInt(startPayload);
+                await User.findOneAndUpdate(
+                    { telegramId: inviterId },
+                    { $inc: { invitedCount: 1 } }
+                );
+            }
+        }
+
+        const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
+
+        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔗 Your Referral Link:\n${botRefLink}\n\n🔥 Collect 300 WLD and invite 10 friends to withdraw!`, 
+            Markup.inlineKeyboard([
+                [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)],
+                [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent("Join GigaMine and mine WLD for free! ⚡")}`)]
+            ])
+        );
+    } catch (err) {
+        console.error("Start Error:", err);
+    }
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("GigaMinebot is Live! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot is Live with Referral System! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is active on port ${PORT}.`);
