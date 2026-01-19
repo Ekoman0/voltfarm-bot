@@ -56,6 +56,8 @@
             font-size: 20px;
         }
 
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+
         .balance-pill {
             background: var(--card-bg);
             padding: 8px 15px;
@@ -66,6 +68,17 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .daily-btn {
+            background: var(--card-bg);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 1px solid var(--neon-gold);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--neon-gold);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.2);
         }
 
         .mining-main {
@@ -122,7 +135,6 @@
         .cool-color { color: var(--cool-blue); }
         .market-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
-        /* Yeni Eklenen Stiller */
         .referral-card {
             background: var(--card-bg); border-radius: 20px; padding: 20px;
             border: 1px dashed var(--accent); margin-bottom: 20px; text-align: center;
@@ -132,7 +144,7 @@
             font-size: 12px; color: var(--accent); margin: 10px 0;
             word-break: break-all; border: 1px solid rgba(255,255,255,0.1);
         }
-        .task-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 100px; }
+        .task-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
         .task-item {
             background: var(--card-bg); border-radius: 15px; padding: 15px;
             display: flex; justify-content: space-between; align-items: center;
@@ -148,48 +160,59 @@
             background: #334155; color: #94a3b8; cursor: default;
         }
 
-        #wallet-sheet {
+        .wld-price-ticker {
+            text-align: center; background: rgba(0,0,0,0.4); padding: 10px;
+            border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px; margin-bottom: 100px; color: var(--neon-green);
+        }
+
+        /* Modal Styles */
+        .bottom-sheet {
             position: fixed; bottom: -100%; left: 0; width: 100%; height: 85vh;
             background: #0f172a; border-top: 2px solid var(--accent);
             border-radius: 30px 30px 0 0; z-index: 1000; transition: 0.4s;
             padding: 25px; box-sizing: border-box; display: flex; flex-direction: column;
             box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
         }
-        #wallet-sheet.active { bottom: 0; }
+        .bottom-sheet.active { bottom: 0; }
         .sheet-handle { width: 50px; height: 5px; background: rgba(255,255,255,0.2); border-radius: 10px; margin: 0 auto 20px auto; }
-        
-        .withdraw-input {
-            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 15px; border-radius: 15px; margin: 15px 0;
-            font-family: 'Rajdhani'; font-size: 16px; box-sizing: border-box;
-        }
-
-        .task-card {
-            background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-top: 20px;
-            border-left: 4px solid var(--neon-gold);
-        }
-        .task-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
-        .progress-container { width: 100%; height: 10px; background: #000; border-radius: 5px; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--neon-gold); width: 0%; transition: 0.5s; }
-
-        .btn-withdraw {
-            background: var(--accent); color: white; border: none; padding: 15px; border-radius: 15px;
-            font-family: 'Orbitron'; font-weight: bold; width: 100%; margin-top: 20px; cursor: pointer;
-        }
-        .btn-withdraw.locked { background: #334155; cursor: not-allowed; opacity: 0.6; }
         
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; z-index: 999;
         }
 
-        #withdraw-step-limit { display: block; }
-        #withdraw-step-tasks { display: none; }
+        /* Daily Calendar UI */
+        .daily-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px;
+        }
+        .day-box {
+            background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 10px; text-align: center;
+        }
+        .day-box.active { border-color: var(--neon-gold); background: rgba(251, 191, 36, 0.1); }
+        .day-box.completed { border-color: var(--neon-green); background: rgba(34, 197, 94, 0.1); }
+        .day-box span { display: block; font-size: 10px; color: #94a3b8; }
+        .day-box strong { font-size: 14px; color: var(--neon-gold); }
+
+        /* Wallet Specifics */
+        .withdraw-input {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 15px; border-radius: 15px; margin: 15px 0;
+            font-family: 'Rajdhani'; font-size: 16px; box-sizing: border-box;
+        }
+        .progress-container { width: 100%; height: 10px; background: #000; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--neon-gold); width: 0%; transition: 0.5s; }
+        .btn-withdraw {
+            background: var(--accent); color: white; border: none; padding: 15px; border-radius: 15px;
+            font-family: 'Orbitron'; font-weight: bold; width: 100%; margin-top: 20px; cursor: pointer;
+        }
+        .btn-withdraw.locked { background: #334155; cursor: not-allowed; opacity: 0.6; }
     </style>
 </head>
 <body>
 
-<div class="overlay" id="overlay" onclick="toggleWallet()"></div>
+<div class="overlay" id="overlay" onclick="closeAllModals()"></div>
 
 <div class="container">
     <div class="header">
@@ -200,9 +223,12 @@
                 <div id="user-name" style="font-weight: 700;">PLAYER</div>
             </div>
         </div>
-        <div class="balance-pill" onclick="toggleWallet()">
-            <span id="total-balance" style="color: var(--neon-gold); font-weight: bold; font-size: 18px;">0.00</span>
-            <i class="fas fa-wallet" style="color: var(--accent);"></i>
+        <div class="header-actions">
+            <div class="daily-btn" onclick="toggleDaily()"><i class="fas fa-calendar-check"></i></div>
+            <div class="balance-pill" onclick="toggleWallet()">
+                <span id="total-balance" style="color: var(--neon-gold); font-weight: bold; font-size: 18px;">0.00</span>
+                <i class="fas fa-wallet" style="color: var(--accent);"></i>
+            </div>
         </div>
     </div>
 
@@ -271,13 +297,24 @@
     </div>
 
     <div class="section-header"><i class="fas fa-tasks"></i> ACTIVE MISSIONS</div>
-    <div class="task-list" id="daily-task-container">
-        </div>
+    <div class="task-list" id="daily-task-container"></div>
+    
+    <div class="wld-price-ticker">
+        <i class="fas fa-chart-line"></i> LIVE WLD PRICE: <span id="wld-price-val">Loading...</span>
+    </div>
 </div>
 
-<div id="wallet-sheet">
+<div id="daily-sheet" class="bottom-sheet">
     <div class="sheet-handle"></div>
-    
+    <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); text-align: center;">DAILY REWARDS</h2>
+    <p style="text-align: center; font-size: 14px; color: #94a3b8;">Don't miss a day or your streak will reset!</p>
+    <div class="daily-grid" id="daily-grid">
+        </div>
+    <button id="claim-daily-btn" class="btn-claim" style="margin-top: 30px;" onclick="claimDailyReward()">CLAIM TODAY'S REWARD</button>
+</div>
+
+<div id="wallet-sheet" class="bottom-sheet">
+    <div class="sheet-handle"></div>
     <div id="withdraw-step-limit">
         <h2 style="font-family: 'Orbitron'; color: var(--accent); margin: 0;">WITHDRAW WLD</h2>
         <div style="text-align: center; margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 20px;">
@@ -288,38 +325,29 @@
                 <span id="sheet-current-balance-text">0.00</span> / 300.00
             </div>
         </div>
-        <button class="btn-claim" style="margin-top: 30px; background: #334155;" onclick="toggleWallet()">CONTINUE MINING</button>
+        <button class="btn-claim" style="margin-top: 30px; background: #334155;" onclick="closeAllModals()">CONTINUE MINING</button>
     </div>
 
-    <div id="withdraw-step-tasks">
+    <div id="withdraw-step-tasks" style="display:none;">
         <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); margin: 0;">WITHDRAWAL UNLOCKED!</h2>
         <p style="color: #94a3b8; font-size: 14px;">Complete the security steps to release your 300+ WLD.</p>
 
         <label style="font-size: 12px; color: var(--neon-gold);">USDT TRC-20 ADDRESS</label>
         <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
 
-        <div class="task-card">
-            <div class="task-row">
-                <span><i class="fas fa-users"></i> Invite 10 Friends</span>
-                <span id="friends-count">0 / 10</span>
+        <div style="background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; border-left: 4px solid var(--neon-gold);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>Invite 10 Friends</span><span id="friends-count">0 / 10</span>
             </div>
             <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
 
-            <div class="task-row" style="margin-top: 15px;">
-                <span><i class="fas fa-share-nodes"></i> Share in 5 Groups</span>
-                <span id="groups-count">0 / 5</span>
+            <div style="display: flex; justify-content: space-between; margin: 15px 0 5px 0;">
+                <span>Share in 5 Groups</span><span id="groups-count">0 / 5</span>
             </div>
             <div class="progress-container"><div id="groups-bar" class="progress-fill"></div></div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-            <button class="btn-claim" style="font-size: 12px; padding: 12px;" onclick="inviteFriend()">GET REF LINK</button>
-            <button class="btn-claim" style="font-size: 12px; padding: 12px; background: #8b5cf6;" onclick="shareInGroups()">SHARE GROUPS</button>
-        </div>
-
-        <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">
-            SEND WITHDRAWAL REQUEST
-        </button>
+        <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">SEND WITHDRAWAL REQUEST</button>
     </div>
 </div>
 
@@ -336,32 +364,17 @@
     let groupShareCount = 0; 
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
+    // Daily Reward Variables
+    let lastCheckIn = 0;
+    let streak = 0;
+    const dailyRewards = [1, 2, 3, 4, 5, 6, 10];
+
     const BASE_HEAT_RATE = 100 / (4 * 3600); 
 
-    // GÜNCELLENMİŞ GÖREV LİSTESİ - İSTEDİĞİN 3 LİNK
-    // Reward miktarlarını da 50 WLD yaptım, istersen değiştirebilirsin.
     const dailyTasks = [
-        { 
-            id: 1, 
-            title: "Join Bonus Hunters", 
-            reward: 50, 
-            link: "https://t.me/Bonushunters1bot?start=c0133f38-e262-4b33-afc7-0f98e99b4d3c",
-            btnText: "JOIN"
-        },
-        { 
-            id: 2, 
-            title: "Join World Network", 
-            reward: 50, 
-            link: "https://t.me/worldnetworkofficial",
-            btnText: "JOIN"
-        },
-        { 
-            id: 3, 
-            title: "Check Worldcoin X", 
-            reward: 50, 
-            link: "https://x.com/worldcoin",
-            btnText: "OPEN X"
-        }
+        { id: 1, title: "Join Bonus Hunters", reward: 10, link: "https://t.me/Bonushunters1bot?start=c0133f38-e262-4b33-afc7-0f98e99b4d3c", btnText: "JOIN" },
+        { id: 2, title: "Join World Network", reward: 10, link: "https://t.me/worldnetworkofficial", btnText: "JOIN" },
+        { id: 3, title: "Check Worldcoin X", reward: 10, link: "https://x.com/worldcoin", btnText: "OPEN X" }
     ];
 
     if(tg.initDataUnsafe.user) {
@@ -388,6 +401,31 @@
         updateWithdrawUI();
     }
 
+    function toggleDaily() {
+        const sheet = document.getElementById('daily-sheet');
+        const overlay = document.getElementById('overlay');
+        sheet.classList.toggle('active');
+        overlay.style.display = sheet.classList.contains('active') ? 'block' : 'none';
+        renderDailyGrid();
+    }
+
+    function closeAllModals() {
+        document.getElementById('wallet-sheet').classList.remove('active');
+        document.getElementById('daily-sheet').classList.remove('active');
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    async function fetchWLDPrice() {
+        try {
+            const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=worldcoin-wld&vs_currencies=usd');
+            const data = await res.json();
+            const price = data['worldcoin-wld'].usd;
+            document.getElementById('wld-price-val').innerText = `$${price.toFixed(2)}`;
+        } catch (e) {
+            document.getElementById('wld-price-val').innerText = "$2.45 (Est.)";
+        }
+    }
+
     async function loadUserData() {
         try {
             const response = await fetch(`/api/user/${telegramId}`);
@@ -399,66 +437,99 @@
             coolingPower = data.coolingPower || 1; 
             inviteCount = data.invitedCount || 0;
             groupShareCount = data.groupShares || 0;
+            streak = data.streak || 0;
+            lastCheckIn = data.lastCheckIn || 0;
+            
+            checkStreakReset();
             updateUI();
             renderTasks(data.completedTasks || []);
             document.getElementById('ref-link-display').innerText = `https://t.me/GigaMinebot?start=${telegramId}`;
         } catch (err) { 
-            // Hata durumunda (local test) varsayılan
             renderTasks([]);
-            console.error("Data load error:", err); 
         }
+    }
+
+    function checkStreakReset() {
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        const twoDays = 48 * 60 * 60 * 1000;
+
+        if (lastCheckIn !== 0 && (now - lastCheckIn) > twoDays) {
+            streak = 0; // Reset if more than 48h passed
+        }
+    }
+
+    function renderDailyGrid() {
+        const grid = document.getElementById('daily-grid');
+        grid.innerHTML = dailyRewards.map((reward, index) => {
+            let status = "";
+            if (index < streak) status = "completed";
+            else if (index === streak) status = "active";
+            
+            return `
+                <div class="day-box ${status}">
+                    <span>Day ${index+1}</span>
+                    <strong>${reward} WLD</strong>
+                    ${status === 'completed' ? '<i class="fas fa-check-circle" style="color:var(--neon-green)"></i>' : ''}
+                </div>
+            `;
+        }).join('');
+
+        const btn = document.getElementById('claim-daily-btn');
+        const now = Date.now();
+        const canClaim = (now - lastCheckIn) >= (24 * 60 * 60 * 1000) || lastCheckIn === 0;
+
+        if (!canClaim) {
+            btn.innerText = "ALREADY CLAIMED TODAY";
+            btn.style.background = "#334155";
+            btn.disabled = true;
+        } else {
+            btn.innerText = "CLAIM TODAY'S REWARD";
+            btn.style.background = "linear-gradient(90deg, #10b981, #059669)";
+            btn.disabled = false;
+        }
+    }
+
+    function claimDailyReward() {
+        const reward = dailyRewards[streak];
+        totalBalance += reward;
+        streak = (streak + 1) % 7;
+        lastCheckIn = Date.now();
+        
+        tg.showAlert(`Congratulations! You earned ${reward} WLD.`);
+        updateUI();
+        saveUserData();
+        closeAllModals();
+        tg.HapticFeedback.notificationOccurred('success');
     }
 
     function renderTasks(completedTaskIds) {
         const container = document.getElementById('daily-task-container');
         container.innerHTML = dailyTasks.map(task => {
             const isCompleted = completedTaskIds.includes(task.id);
-            if(isCompleted) {
-                return `
+            return `
                 <div class="task-item">
                     <div class="task-info">
                         <h4>${task.title}</h4>
-                        <p style="color:#22c55e;">COMPLETED</p>
+                        <p>${isCompleted ? 'COMPLETED' : '+'+task.reward+' WLD'}</p>
                     </div>
-                    <button class="btn-go claimed">CLAIMED</button>
+                    <button class="btn-go ${isCompleted ? 'claimed' : ''}" 
+                            onclick="${isCompleted ? '' : `doTask(${task.id}, '${task.link}', ${task.reward})`}">
+                        ${isCompleted ? 'CLAIMED' : task.btnText}
+                    </button>
                 </div>`;
-            } else {
-                return `
-                <div class="task-item" id="task-box-${task.id}">
-                    <div class="task-info">
-                        <h4>${task.title}</h4>
-                        <p>+${task.reward} WLD</p>
-                    </div>
-                    <button id="btn-task-${task.id}" class="btn-go" onclick="doTask(${task.id}, '${task.link}', ${task.reward})">${task.btnText}</button>
-                </div>`;
-            }
         }).join('');
     }
 
     function doTask(id, link, reward) {
-        // Linki aç
         tg.openLink(link);
-        
-        // Kullanıcı uygulamaya geri döndüğünde butonu CLAIMED yap
-        const btn = document.getElementById(`btn-task-${id}`);
-        if(btn) {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            
-            // 3 Saniye bekleme efekti (geri dönmesi için)
-            setTimeout(() => {
-                btn.classList.add('claimed');
-                btn.innerText = "CLAIMED";
-                btn.onclick = null; // Tıklamayı devre dışı bırak
-                
-                // Bakiyeyi güncelle
-                totalBalance += reward;
-                updateUI();
-                tg.HapticFeedback.notificationOccurred('success');
-                
-                // Server'a kaydet (görev yapıldı olarak)
-                saveUserData(id); // ID parametresi ile hangi görevi yaptığını kaydetmeye çalışır
-            }, 3000);
-        }
+        setTimeout(() => {
+            totalBalance += reward;
+            updateUI();
+            saveUserData(id);
+            tg.HapticFeedback.notificationOccurred('success');
+            loadUserData();
+        }, 3000);
     }
 
     function updateUI() {
@@ -466,12 +537,9 @@
         document.getElementById('mined-amount').innerText = currentMined.toFixed(4);
         document.getElementById('heat-text').innerText = Math.floor(heat) + '%';
         document.getElementById('heat-bar').style.width = heat + '%';
-        
         let hourlyRate = (gpus * 0.0005) * 3600;
         document.getElementById('hourly-rate').innerText = hourlyRate.toFixed(2);
-
-        let heatPerSec = BASE_HEAT_RATE / coolingPower; 
-        let secondsToFull = (100 - heat) / heatPerSec;
+        let secondsToFull = (100 - heat) / (BASE_HEAT_RATE / coolingPower);
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
         updateWithdrawUI();
     }
@@ -487,60 +555,29 @@
     function updateWithdrawUI() {
         const btn = document.getElementById('withdraw-final-btn');
         if(!btn) return;
-
         document.getElementById('friends-count').innerText = `${inviteCount} / 10`;
         document.getElementById('groups-count').innerText = `${groupShareCount} / 5`;
-        
         document.getElementById('friends-bar').style.width = (Math.min(inviteCount, 10) / 10 * 100) + '%';
         document.getElementById('groups-bar').style.width = (Math.min(groupShareCount, 5) / 5 * 100) + '%';
 
         if (inviteCount >= 10 && groupShareCount >= 5) {
             btn.classList.remove('locked');
             btn.style.background = "var(--neon-green)";
-            btn.innerText = "SEND WITHDRAWAL REQUEST";
-        } else {
-            btn.classList.add('locked');
-            btn.innerText = "COMPLETE TASKS ABOVE";
         }
     }
 
     function inviteFriend() {
-        const botUsername = "GigaMinebot";
-        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
-        const text = "🚀 Join GigaMine! Mine WLD for free and withdraw to your wallet! ⚡";
-        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent(text)}`);
-    }
-
-    function shareInGroups() {
-        const botUsername = "GigaMinebot";
-        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
-        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Check this group mining!`);
-        
-        setTimeout(() => {
-            tg.showConfirm("Did you share the link in a group?", (confirm) => {
-                if(confirm) {
-                    if(groupShareCount < 5) groupShareCount++;
-                    updateWithdrawUI();
-                    saveUserData();
-                }
-            });
-        }, 3000);
+        const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Join GigaMine and mine WLD! ⚡`);
     }
 
     function processWithdraw() {
         const address = document.getElementById('wallet-address').value;
-        if (totalBalance < 300) return;
-
-        if (!address || address.length < 15) {
-            tg.showAlert("Enter a valid USDT TRC-20 Address!");
+        if (totalBalance < 300 || !address || address.length < 15) {
+            tg.showAlert("Check your balance and address!");
             return;
         }
-        if (inviteCount < 10 || groupShareCount < 5) {
-            tg.showAlert("Complete tasks first!");
-            return;
-        }
-
-        tg.showConfirm(`Withdraw ${totalBalance.toFixed(2)} WLD to ${address}?`, async (ok) => {
+        tg.showConfirm(`Withdraw ${totalBalance.toFixed(2)} WLD?`, async (ok) => {
             if(ok) {
                 const res = await fetch('/api/withdraw', {
                     method: 'POST',
@@ -549,10 +586,10 @@
                 });
                 const data = await res.json();
                 if(data.success) {
-                    tg.showAlert("Request sent! Verification takes 24-48h.");
+                    tg.showAlert("Request sent!");
                     totalBalance = 0;
                     updateUI();
-                    toggleWallet();
+                    closeAllModals();
                 }
             }
         });
@@ -577,31 +614,22 @@
     }
 
     function coolDown() {
-        heat = 0;
-        updateUI();
-        saveUserData();
+        heat = 0; updateUI(); saveUserData();
         tg.HapticFeedback.impactOccurred('medium');
     }
 
     async function saveUserData(completedTaskId = null) {
         try {
-            // Eğer görev tamamlandıysa completedTasks array'ine eklemek için backend'e yolla
             await fetch('/api/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    telegramId, 
-                    balance: totalBalance, 
-                    gpus, 
-                    heat, 
-                    mined: currentMined, 
-                    coolingPower, 
-                    inviteCount: inviteCount, 
-                    groupShareCount: groupShareCount,
-                    newCompletedTask: completedTaskId // Opsiyonel parametre
+                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, 
+                    coolingPower, inviteCount, groupShareCount, streak, lastCheckIn,
+                    newCompletedTask: completedTaskId
                 })
             });
-        } catch (err) { console.error("Save error:", err); }
+        } catch (err) {}
     }
 
     async function buyItem(type, power, starPrice, title) {
@@ -616,7 +644,6 @@
                 if (data.invoiceUrl) {
                     tg.openInvoice(data.invoiceUrl, (status) => {
                         if (status === 'paid') {
-                            tg.showAlert("Paid!");
                             setTimeout(loadUserData, 1500);
                         }
                     });
@@ -625,8 +652,10 @@
         });
     }
 
+    fetchWLDPrice();
     loadUserData();
     setInterval(saveUserData, 20000);
+    setInterval(fetchWLDPrice, 60000);
 </script>
 </body>
 </html>
