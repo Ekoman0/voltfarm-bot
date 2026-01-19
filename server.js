@@ -18,7 +18,7 @@ app.use(express.static(__dirname));
 
 // 2. VERİTABANI MODELLERİ
 const userSchema = new mongoose.Schema({
-    telegramId: { type: Number, unique: true },
+    telegramId: { type: Number, unique: true, required: true },
     balance: { type: Number, default: 0 },
     mined: { type: Number, default: 0 },
     gpus: { type: Number, default: 1 },
@@ -27,11 +27,11 @@ const userSchema = new mongoose.Schema({
     lastUpdate: { type: Date, default: Date.now },
     invitedCount: { type: Number, default: 0 },
     groupShares: { type: Number, default: 0 },
-    // GÜNCELLEME: CastError hatasını önlemek için Mixed tipine geçildi
+    // CastError hatasını önlemek için Mixed
     completedTasks: { type: [mongoose.Schema.Types.Mixed], default: [] }, 
     streak: { type: Number, default: 0 },
     lastCheckIn: { type: Number, default: 0 }
-});
+}, { strict: false });
 
 const taskSchema = new mongoose.Schema({
     title: String,
@@ -50,6 +50,34 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
+// --- YENİ EKLENEN: WLD GÜNCEL FİYAT API ---
+app.get('/api/wld-price', async (req, res) => {
+    try {
+        // Binance API üzerinden WLD/USDT paritesini çekiyoruz
+        const response = await axios.get('https://api.binance.com/api/v3/ticker/24hr?symbol=WLDUSDT');
+        const data = response.data;
+
+        // Fiyatı virgülden sonra 4 hane yap (Örn: 1.8423)
+        const price = parseFloat(data.lastPrice).toFixed(4);
+        
+        // Değişim yüzdesini al (Örn: 5.20)
+        let change = parseFloat(data.priceChangePercent).toFixed(2);
+        
+        // Pozitifse başına + koy, negatifse zaten - var
+        if (parseFloat(change) > 0) change = "+" + change;
+
+        res.json({ 
+            price: price, 
+            change: change 
+        });
+    } catch (error) {
+        console.error("Fiyat Çekme Hatası:", error.message);
+        // Hata durumunda varsayılan değer gönder
+        res.json({ price: "---", change: "0.00" });
+    }
+});
+// ------------------------------------------
+
 // Kullanıcı verilerini getirme
 app.get('/api/user/:id', async (req, res) => {
     try {
@@ -59,7 +87,7 @@ app.get('/api/user/:id', async (req, res) => {
         }
 
         const now = new Date();
-        const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
+        const gapInSeconds = Math.floor((now - new Date(user.lastUpdate)) / 1000);
         
         const BASE_HEAT_RATE = 100 / (4 * 3600);
         const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
@@ -87,22 +115,11 @@ app.get('/api/user/:id', async (req, res) => {
 // Verileri Kaydetme
 app.post('/api/save', async (req, res) => {
     try {
-        const { 
-            telegramId, balance, gpus, heat, mined, coolingPower, 
-            inviteCount, groupShareCount, newCompletedTask,
-            streak, lastCheckIn 
-        } = req.body;
+        const { telegramId, newCompletedTask, ...data } = req.body;
         
-        let updateFields = { 
-            balance, gpus, heat, mined, coolingPower,
-            invitedCount: inviteCount,
-            groupShares: groupShareCount,
-            streak,
-            lastCheckIn,
-            lastUpdate: new Date() 
-        };
+        if (!telegramId) return res.status(400).send("ID eksik");
 
-        let updateQuery = { $set: updateFields };
+        let updateQuery = { $set: { ...data, lastUpdate: new Date() } };
         
         if (newCompletedTask) {
             updateQuery.$addToSet = { completedTasks: newCompletedTask };
