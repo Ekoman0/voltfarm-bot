@@ -19,7 +19,7 @@ app.use(express.static(__dirname));
 // 2. VERİTABANI MODELİ
 const userSchema = new mongoose.Schema({
     telegramId: { type: Number, unique: true },
-    balance: { type: Number, default: 0 },   // Ana bakiye
+    balance: { type: Number, default: 0 },   // Ana bakiye (WLD COIN)
     mined: { type: Number, default: 0 },     // Toplanmamış biriken
     gpus: { type: Number, default: 1 },
     coolingPower: { type: Number, default: 1 }, // Soğutma gücü
@@ -46,17 +46,25 @@ app.get('/api/user/:id', async (req, res) => {
         const now = new Date();
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
         
-        const heatPerSec = 0.18 / (user.coolingPower || 1);
+        // GÜNCELLEME: 4 Saatlik ısınma süresi (100 / (4 * 3600)) = ~0.00694
+        const BASE_HEAT_RATE = 100 / (4 * 3600);
+        const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
 
         if (gapInSeconds > 0 && user.heat < 100) {
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
+            
+            // Maksimum ısıya ne kadar sürede ulaşır?
             const secondsUntilOverheat = heatNeededToMax / heatPerSec;
 
+            // Gerçek kazım süresi (Geçen süre veya cihazın ısınana kadar geçirdiği süre)
             const activeMiningSeconds = Math.min(gapInSeconds, secondsUntilOverheat);
-            const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
             
+            // Çevrimdışı kazanç hesabı (0.0005 WLD / saniye)
+            const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
             user.mined += offlineEarning;
+
+            // Isıyı yeni duruma göre güncelle
             user.heat = Math.min(100, currentHeat + (gapInSeconds * heatPerSec));
         }
 
@@ -72,9 +80,17 @@ app.get('/api/user/:id', async (req, res) => {
 app.post('/api/save', async (req, res) => {
     try {
         const { telegramId, balance, gpus, heat, mined, coolingPower } = req.body;
+        
         await User.findOneAndUpdate(
             { telegramId }, 
-            { balance, gpus, heat, mined, coolingPower, lastUpdate: new Date() },
+            { 
+                balance, 
+                gpus, 
+                heat, 
+                mined,
+                coolingPower, 
+                lastUpdate: new Date() 
+            },
             { upsert: true }
         );
         res.sendStatus(200);
@@ -83,17 +99,16 @@ app.post('/api/save', async (req, res) => {
     }
 });
 
-// --- YENİ: TELEGRAM STARS FATURA OLUŞTURMA ---
+// --- TELEGRAM STARS FATURA OLUŞTURMA ---
 app.post('/api/create-stars-invoice', async (req, res) => {
     const { telegramId, type, power, starPrice, title } = req.body;
 
     try {
-        // Telegram üzerinde fatura linki oluşturma
         const invoiceUrl = await bot.telegram.createInvoiceLink({
             title: `VoltFarm: ${title}`,
-            description: `${title} donanımı ile üretim gücünüzü artırın!`,
-            payload: JSON.stringify({ telegramId, type, power }), // Ödeme sonrası kontrol datası
-            provider_token: "", // Stars için boş bırakılır
+            description: `${title} ile WLD COIN üretim gücünüzü artırın!`,
+            payload: JSON.stringify({ telegramId, type, power }),
+            provider_token: "", // Stars için boş
             currency: "XTR",     // XTR = Telegram Stars
             prices: [{ label: title, amount: parseInt(starPrice) }]
         });
@@ -105,14 +120,12 @@ app.post('/api/create-stars-invoice', async (req, res) => {
     }
 });
 
-// --- YENİ: ÖDEME DOĞRULAMA (WEBHOOK) ---
+// --- ÖDEME DOĞRULAMA (WEBHOOK) ---
 
-// 1. Ödeme öncesi onay (Pre-checkout)
 bot.on('pre_checkout_query', (ctx) => {
     ctx.answerPreCheckoutQuery(true);
 });
 
-// 2. Ödeme tamamlandığında donanımı ver
 bot.on('successful_payment', async (ctx) => {
     const payment = ctx.message.successful_payment;
     const payload = JSON.parse(payment.invoice_payload);
@@ -124,13 +137,13 @@ bot.on('successful_payment', async (ctx) => {
             if (type === 'gpu') {
                 user.gpus += power;
             } else if (type === 'cool') {
-                user.coolingPower += (power * 6.5);
+                // HTML tarafındaki yeni çarpanlarla uyumlu soğutma gücü artışı
+                user.coolingPower += (power * 4.0); 
             }
             await user.save();
             console.log(`ÖDEME ONAYLANDI: User ${telegramId}, ${type} +${power}`);
             
-            // Kullanıcıya bot üzerinden de bilgi ver
-            await ctx.reply(`✅ Tebrikler! Satın aldığınız ${type.toUpperCase()} başarıyla kuruldu ve kazıma başladı.`);
+            await ctx.reply(`✅ Tebrikler! Satın aldığınız ${title || type.toUpperCase()} başarıyla kuruldu ve WLD COIN kazımı hızlandı.`);
         }
     } catch (err) {
         console.error("Başarılı ödeme sonrası DB güncelleme hatası:", err);
@@ -139,7 +152,7 @@ bot.on('successful_payment', async (ctx) => {
 
 // 4. BOT KOMUTLARI
 bot.start((ctx) => {
-    ctx.reply(`🚀 VoltFarm'a Hoş Geldin!\n\nSen kapatsan da GPU'ların çalışmaya devam eder, ancak ısınmaya dikkat et!`, 
+    ctx.reply(`🚀 VoltFarm'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder, ancak ısınmaya dikkat et!`, 
         Markup.inlineKeyboard([
             [Markup.button.webApp('🎮 Madenciliği Başlat', WEBAPP_URL)]
         ])
@@ -148,7 +161,7 @@ bot.start((ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("Telegram Bot Yayında! 🤖"));
+bot.launch().then(() => console.log("Telegram Bot WLD COIN Sürümü Yayında! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sunucu ${PORT} portunda aktif.`);
