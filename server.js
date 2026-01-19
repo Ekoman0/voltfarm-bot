@@ -22,12 +22,15 @@ const userSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },   // Ana bakiye (WLD COIN)
     mined: { type: Number, default: 0 },     // Toplanmamış biriken
     gpus: { type: Number, default: 1 },
-    coolingPower: { type: Number, default: 1 }, // Soğutma gücü
+    coolingPower: { type: Number, default: 1 }, 
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now },
-    invitedCount: { type: Number, default: 0 }, // Gerçek referans sayısı
+    invitedCount: { type: Number, default: 0 }, 
     groupShares: { type: Number, default: 0 },
-    completedTasks: { type: [Number], default: [] } // Tamamlanan görev ID'leri (Number olarak tutuyoruz)
+    completedTasks: { type: [Number], default: [] },
+    // GÜNLÜK GİRİŞ SİSTEMİ İÇİN EKLENENLER
+    streak: { type: Number, default: 0 },
+    lastCheckIn: { type: Number, default: 0 }
 });
 
 const taskSchema = new mongoose.Schema({
@@ -56,8 +59,18 @@ app.get('/api/user/:id', async (req, res) => {
         }
 
         const now = new Date();
+        const currentTime = now.getTime();
+
+        // GÜNLÜK SERİ KONTROLÜ (48 SAAT GEÇTİYSE SIFIRLA)
+        if (user.lastCheckIn !== 0) {
+            const diff = currentTime - user.lastCheckIn;
+            const fortyEightHours = 48 * 60 * 60 * 1000;
+            if (diff > fortyEightHours) {
+                user.streak = 0;
+            }
+        }
+
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
-        
         const BASE_HEAT_RATE = 100 / (4 * 3600);
         const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
 
@@ -81,12 +94,11 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
-// Verileri Kaydetme (GÜNCELLENDİ: Görev kaydı eklendi)
+// Verileri Kaydetme
 app.post('/api/save', async (req, res) => {
     try {
-        const { telegramId, balance, gpus, heat, mined, coolingPower, inviteCount, groupShareCount, newCompletedTask } = req.body;
+        const { telegramId, balance, gpus, heat, mined, coolingPower, inviteCount, groupShareCount, newCompletedTask, streak, lastCheckIn } = req.body;
         
-        // Güncellenecek temel veriler
         let updateFields = { 
             balance, 
             gpus, 
@@ -95,10 +107,11 @@ app.post('/api/save', async (req, res) => {
             coolingPower,
             invitedCount: inviteCount,
             groupShares: groupShareCount,
+            streak,
+            lastCheckIn,
             lastUpdate: new Date() 
         };
 
-        // Eğer yeni bir görev yapıldıysa listeye ekle ($addToSet duplicate engeller)
         let updateQuery = { $set: updateFields };
         if (newCompletedTask) {
             updateQuery.$addToSet = { completedTasks: newCompletedTask };
@@ -126,8 +139,6 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 // --- ADMIN API UÇLARI ---
-
-// Tüm kullanıcıları listele
 app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find().sort({ balance: -1 });
@@ -135,7 +146,6 @@ app.get('/api/admin/users', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// Yeni görev ekle
 app.post('/api/admin/add-task', async (req, res) => {
     try {
         const { title, reward, link } = req.body;
@@ -144,139 +154,94 @@ app.post('/api/admin/add-task', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// Görev Sil
-app.delete('/api/admin/delete-task/:id', async (req, res) => {
-    try {
-        await Task.findByIdAndDelete(req.params.id);
-        res.json({ success: true });
-    } catch (err) { res.status(500).send(err.message); }
-});
-
-// --- PARA ÇEKME (WITHDRAW) ENDPOINT ---
+// --- PARA ÇEKME (WITHDRAW) ---
 app.post('/api/withdraw', async (req, res) => {
     const { telegramId, address, amount } = req.body;
-
     try {
         const user = await User.findOne({ telegramId });
-
         if (!user || user.balance < 300) {
-            return res.status(400).json({ success: false, message: "Limit Not Reached! Min 300 WLD required." });
+            return res.status(400).json({ success: false, message: "Limit Not Reached!" });
         }
-        
         if (user.invitedCount < 10 || user.groupShares < 5) {
-            return res.status(400).json({ success: false, message: "Tasks not completed! 10 invites and 5 shares required." });
+            return res.status(400).json({ success: false, message: "Tasks not completed!" });
         }
 
-        console.log(`
-        ======= 💸 NEW WITHDRAWAL REQUEST (GigaMine) =======
-        USER ID      : ${telegramId}
-        AMOUNT       : ${amount.toFixed(2)} WLD
-        WALLET ADDR  : ${address}
-        TASKS STATUS : ${user.invitedCount}/10 Invites - ${user.groupShares}/5 Groups
-        ====================================================
-        `);
-
+        console.log(`======= 💸 WITHDRAW REQUEST: ${telegramId} | ${amount} WLD | ${address} =======`);
         user.balance = 0;
         await user.save();
-
         res.json({ success: true });
     } catch (err) {
-        console.error("Withdraw Error:", err);
-        res.status(500).json({ success: false, message: "Server error." });
+        res.status(500).json({ success: false });
     }
 });
 
-// --- TELEGRAM STARS FATURA OLUŞTURMA ---
+// --- TELEGRAM STARS & PAYMENT ---
 app.post('/api/create-stars-invoice', async (req, res) => {
     const { telegramId, type, power, starPrice, title } = req.body;
-
     try {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
             title: `GigaMine: ${title}`,
-            description: `${title} ile WLD COIN üretim gücünüzü artırın!`,
+            description: `${title} Upgrade!`,
             payload: JSON.stringify({ telegramId, type, power, title }),
-            provider_token: "", // Stars için boş bırakılır
+            provider_token: "", 
             currency: "XTR", 
             prices: [{ label: title, amount: parseInt(starPrice) }]
         });
-        
         res.json({ invoiceUrl });
     } catch (err) {
-        console.error("Invoice Error:", err);
-        res.status(500).json({ error: "Invoice could not be created." });
+        res.status(500).json({ error: "Error" });
     }
 });
 
-// --- ÖDEME DOĞRULAMA ---
-bot.on('pre_checkout_query', (ctx) => {
-    ctx.answerPreCheckoutQuery(true);
-});
+bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
 bot.on('successful_payment', async (ctx) => {
-    const payment = ctx.message.successful_payment;
-    const payload = JSON.parse(payment.invoice_payload);
+    const payload = JSON.parse(ctx.message.successful_payment.invoice_payload);
     const { telegramId, type, power, title } = payload;
-
     try {
         let user = await User.findOne({ telegramId });
         if (user) {
             if (type === 'gpu') user.gpus += power;
             else if (type === 'cool') user.coolingPower += (power * 4.0); 
             await user.save();
-            await ctx.reply(`✅ Purchase Successful! ${title || type.toUpperCase()} has been installed.`);
+            await ctx.reply(`✅ Success! ${title} installed.`);
         }
-    } catch (err) {
-        console.error("Payment Success Error:", err);
-    }
+    } catch (err) {}
 });
 
-// 4. BOT KOMUTLARI & REFERANS SİSTEMİ
+// 4. BOT KOMUTLARI & REFERANS
 bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
     const startPayload = ctx.payload;
-
     try {
         let user = await User.findOne({ telegramId });
-        
         if (!user) {
             user = await User.create({ telegramId });
-
             if (startPayload && !isNaN(startPayload) && parseInt(startPayload) !== telegramId) {
                 const inviterId = parseInt(startPayload);
-                
-                // GÜNCELLENDİ: Davet edene +40 WLD ödül ver
                 await User.findOneAndUpdate(
                     { telegramId: inviterId },
                     { $inc: { invitedCount: 1, balance: 40 } }
                 );
-                
-                // Davet edene bildirim gönder
-                bot.telegram.sendMessage(inviterId, "🎁 New friend joined! You earned +40 WLD reward.");
+                bot.telegram.sendMessage(inviterId, "🎁 New friend joined! You earned +40 WLD.");
             }
         }
-
         const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
-
-        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔗 Your Referral Link:\n${botRefLink}\n\n🔥 Collect 300 WLD and invite 10 friends to withdraw!\n🎁 Reward: +40 WLD for each invite!`, 
+        ctx.reply(`🚀 Welcome to GigaMine!\n\n🔗 Referral Link: ${botRefLink}`, 
             Markup.inlineKeyboard([
                 [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)],
-                [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent("Join GigaMine and mine WLD for free! ⚡")}`)]
+                [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Join GigaMine!`)]
             ])
         );
-    } catch (err) {
-        console.error("Start Error:", err);
-    }
+    } catch (err) {}
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("GigaMinebot is Live with Admin & Reward System! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot is Live! 🤖"));
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is active on port ${PORT}.`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on ${PORT}`));
 
-// Sunucuyu ayakta tutmak için basit ping
 setInterval(() => {
     if(WEBAPP_URL) axios.get(WEBAPP_URL).catch(() => {});
 }, 600000);
