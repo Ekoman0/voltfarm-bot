@@ -35,7 +35,7 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
-// Kullanıcı verilerini getirme ve Çevrimdışı Kazım Hesaplama
+// Kullanıcı verilerini getirme
 app.get('/api/user/:id', async (req, res) => {
     try {
         let user = await User.findOne({ telegramId: req.params.id });
@@ -46,25 +46,17 @@ app.get('/api/user/:id', async (req, res) => {
         const now = new Date();
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
         
-        // GÜNCELLEME: 4 Saatlik ısınma süresi (100 / (4 * 3600)) = ~0.00694
         const BASE_HEAT_RATE = 100 / (4 * 3600);
         const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
 
         if (gapInSeconds > 0 && user.heat < 100) {
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
-            
-            // Maksimum ısıya ne kadar sürede ulaşır?
             const secondsUntilOverheat = heatNeededToMax / heatPerSec;
-
-            // Gerçek kazım süresi (Geçen süre veya cihazın ısınana kadar geçirdiği süre)
             const activeMiningSeconds = Math.min(gapInSeconds, secondsUntilOverheat);
             
-            // Çevrimdışı kazanç hesabı (0.0005 WLD / saniye)
             const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
             user.mined += offlineEarning;
-
-            // Isıyı yeni duruma göre güncelle
             user.heat = Math.min(100, currentHeat + (gapInSeconds * heatPerSec));
         }
 
@@ -99,17 +91,53 @@ app.post('/api/save', async (req, res) => {
     }
 });
 
+// --- PARA ÇEKME (WITHDRAW) ENDPOINT ---
+app.post('/api/withdraw', async (req, res) => {
+    const { telegramId, address, amount } = req.body;
+
+    try {
+        const user = await User.findOne({ telegramId });
+
+        if (!user || user.balance < 300) {
+            return res.status(400).json({ success: false, message: "Yetersiz bakiye! Minimum 300 WLD gereklidir." });
+        }
+
+        // ÖNEMLİ: Çekim talebi kaydı (Terminaline düşer)
+        console.log(`
+        ======= 💸 YENİ ÇEKİM TALEBİ (GigaMine) =======
+        KULLANICI ID : ${telegramId}
+        MİKTAR       : ${amount.toFixed(2)} WLD
+        CÜZDAN ADRESİ: ${address}
+        TARİH        : ${new Date().toLocaleString('tr-TR')}
+        ==============================================
+        `);
+
+        // Kullanıcı bakiyesini sıfırla
+        user.balance = 0;
+        await user.save();
+
+        // Admin'e (sana) Telegram üzerinden de bildirim gönderelim (İsteğe bağlı)
+        // Bunun çalışması için senin Telegram ID'ni bilmemiz gerekir.
+        // bot.telegram.sendMessage('SENIN_ID', `🚨 Çekim Talebi!\nID: ${telegramId}\nMiktar: ${amount} WLD\nAdres: ${address}`);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Çekim hatası:", err);
+        res.status(500).json({ success: false, message: "Sunucu hatası oluştu." });
+    }
+});
+
 // --- TELEGRAM STARS FATURA OLUŞTURMA ---
 app.post('/api/create-stars-invoice', async (req, res) => {
     const { telegramId, type, power, starPrice, title } = req.body;
 
     try {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
-            title: `VoltFarm: ${title}`,
+            title: `GigaMine: ${title}`,
             description: `${title} ile WLD COIN üretim gücünüzü artırın!`,
-            payload: JSON.stringify({ telegramId, type, power }),
-            provider_token: "", // Stars için boş
-            currency: "XTR",     // XTR = Telegram Stars
+            payload: JSON.stringify({ telegramId, type, power, title }),
+            provider_token: "", 
+            currency: "XTR", 
             prices: [{ label: title, amount: parseInt(starPrice) }]
         });
         
@@ -121,7 +149,6 @@ app.post('/api/create-stars-invoice', async (req, res) => {
 });
 
 // --- ÖDEME DOĞRULAMA (WEBHOOK) ---
-
 bot.on('pre_checkout_query', (ctx) => {
     ctx.answerPreCheckoutQuery(true);
 });
@@ -129,7 +156,7 @@ bot.on('pre_checkout_query', (ctx) => {
 bot.on('successful_payment', async (ctx) => {
     const payment = ctx.message.successful_payment;
     const payload = JSON.parse(payment.invoice_payload);
-    const { telegramId, type, power } = payload;
+    const { telegramId, type, power, title } = payload;
 
     try {
         let user = await User.findOne({ telegramId });
@@ -137,7 +164,6 @@ bot.on('successful_payment', async (ctx) => {
             if (type === 'gpu') {
                 user.gpus += power;
             } else if (type === 'cool') {
-                // HTML tarafındaki yeni çarpanlarla uyumlu soğutma gücü artışı
                 user.coolingPower += (power * 4.0); 
             }
             await user.save();
@@ -152,7 +178,7 @@ bot.on('successful_payment', async (ctx) => {
 
 // 4. BOT KOMUTLARI
 bot.start((ctx) => {
-    ctx.reply(`🚀 VoltFarm'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder, ancak ısınmaya dikkat et!`, 
+    ctx.reply(`🚀 GigaMinebot'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 300 WLD biriktir ve çekim talebi gönder!`, 
         Markup.inlineKeyboard([
             [Markup.button.webApp('🎮 Madenciliği Başlat', WEBAPP_URL)]
         ])
@@ -161,7 +187,7 @@ bot.start((ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("Telegram Bot WLD COIN Sürümü Yayında! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot WLD COIN Sürümü Yayında! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sunucu ${PORT} portunda aktif.`);
