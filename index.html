@@ -122,7 +122,7 @@
         .heat-meta { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; font-weight: bold; color: #94a3b8; }
         .time-to-full { color: var(--danger); font-family: 'Orbitron'; }
 
-        .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 15px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
+        .section-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px 5px; font-family: 'Orbitron', sans-serif; font-size: 13px; color: #94a3b8; }
         
         .market-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; width: 100%; scrollbar-width: none; }
         .market-card {
@@ -159,6 +159,29 @@
         .btn-go.claimed {
             background: #334155; color: #94a3b8; cursor: default;
         }
+
+        /* YENİ MARKET TICKER STİLİ */
+        .live-ticker-box {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ticker-label {
+            font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 6px;
+        }
+        .ticker-values { display: flex; align-items: center; gap: 10px; }
+        .ticker-price { font-family: 'Orbitron'; font-size: 16px; font-weight: bold; color: white; }
+        .ticker-change { 
+            font-family: 'Orbitron'; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: bold;
+        }
+        .change-up { color: var(--neon-green); background: rgba(34, 197, 94, 0.1); }
+        .change-down { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+
 
         /* MODAL STYLES */
         #wallet-sheet, #daily-sheet {
@@ -206,11 +229,6 @@
         .day-box.completed { border-color: var(--neon-green); background: rgba(34, 197, 94, 0.1); color: var(--neon-green); }
         .day-title { font-size: 10px; color: #94a3b8; }
         .day-reward { font-size: 14px; font-weight: bold; margin-top: 5px; }
-
-        .wld-price-tag {
-            font-size: 12px; color: var(--neon-green); background: rgba(34, 197, 94, 0.1);
-            padding: 4px 10px; border-radius: 10px; margin-left: auto; font-family: 'Orbitron';
-        }
     </style>
 </head>
 <body>
@@ -303,7 +321,17 @@
 
     <div class="section-header">
         <i class="fas fa-tasks"></i> ACTIVE MISSIONS
-        <div class="wld-price-tag" id="wld-price">WLD: $...</div>
+    </div>
+
+    <div class="live-ticker-box">
+        <div class="ticker-label">
+            <img src="https://cryptologos.cc/logos/worldcoin-org-wld-logo.png" style="width: 20px; border-radius: 50%;">
+            WLD / USDT
+        </div>
+        <div class="ticker-values">
+            <div class="ticker-price" id="wld-live-price">Loading...</div>
+            <div class="ticker-change" id="wld-24h-change">...</div>
+        </div>
     </div>
     <div class="task-list" id="daily-task-container"></div>
 </div>
@@ -481,13 +509,27 @@
         setTimeout(closeAllSheets, 1500);
     }
 
-    // MARKET PRICE (WLD)
+    // MARKET PRICE (WLD) - API'den çeker
     async function fetchWLDPrice() {
         try {
-            const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=WLDUSDT');
+            // server.js'deki API'yi kullanıyoruz
+            const res = await fetch('/api/wld-price');
             const data = await res.json();
-            document.getElementById('wld-price').innerText = `WLD: $${parseFloat(data.price).toFixed(3)}`;
-        } catch (e) { console.log("Price fetch error"); }
+            
+            const priceEl = document.getElementById('wld-live-price');
+            const changeEl = document.getElementById('wld-24h-change');
+
+            priceEl.innerText = `$${data.price}`;
+            changeEl.innerText = `${data.change}%`;
+
+            // Renk Ayarı
+            if (data.change.includes('+')) {
+                changeEl.className = "ticker-change change-up";
+            } else {
+                changeEl.className = "ticker-change change-down";
+            }
+
+        } catch (e) { console.log("Price fetch error", e); }
     }
 
     async function loadUserData() {
@@ -691,7 +733,7 @@
     }, 1000);
 
     fetchWLDPrice();
-    setInterval(fetchWLDPrice, 30000);
+    setInterval(fetchWLDPrice, 30000); // 30 saniyede bir fiyatı güncelle
     loadUserData();
     setInterval(saveUserData, 20000);
 </script>
