@@ -28,14 +28,14 @@ const userSchema = new mongoose.Schema({
     invitedCount: { type: Number, default: 0 }, // Gerçek referans sayısı
     groupShares: { type: Number, default: 0 },
     completedTasks: { type: [Number], default: [] }, // Tamamlanan görev ID'leri
-    // GÜNLÜK GİRİŞ SİSTEMİ VERİLERİ
-    streak: { type: Number, default: 0 },
-    lastCheckIn: { type: Number, default: 0 }
+    // GÜNLÜK GİRİŞ SİSTEMİ İÇİN EKLENENLER
+    streak: { type: Number, default: 0 }, // Kaçıncı gün (1-7)
+    lastCheckIn: { type: Number, default: 0 } // Son giriş timestamp (ms)
 });
 
 const taskSchema = new mongoose.Schema({
     title: String,
-    reward: Number,
+    reward: { type: Number, default: 10 }, // İstediğin üzere varsayılan 10 WLD
     link: String,
     isActive: { type: Boolean, default: true }
 });
@@ -48,9 +48,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("MongoDB Bağlantısı Başarılı! ✅"))
     .catch(err => console.error("MongoDB Hatası:", err));
 
-// 3. API UÇLARI (USER & GAME)
+// 3. API UÇLARI
 
-// Kullanıcı verilerini getirme (Offline kazanç ve seri sıfırlama hesaplaması)
+// Kullanıcı verilerini getirme
 app.get('/api/user/:id', async (req, res) => {
     try {
         let user = await User.findOne({ telegramId: req.params.id });
@@ -59,23 +59,12 @@ app.get('/api/user/:id', async (req, res) => {
         }
 
         const now = new Date();
-        const currentTime = now.getTime();
-
-        // --- GÜNLÜK SERİ KONTROLÜ (48 SAAT GEÇTİYSE SIFIRLA) ---
-        if (user.lastCheckIn !== 0) {
-            const diff = currentTime - user.lastCheckIn;
-            const fortyEightHours = 48 * 60 * 60 * 1000;
-            if (diff > fortyEightHours) {
-                user.streak = 0; // Seri bozuldu, 0'dan başla
-            }
-        }
-
         const gapInSeconds = Math.floor((now - user.lastUpdate) / 1000);
         
-        const BASE_HEAT_RATE = 100 / (4 * 3600); // 4 saatte %100 ısınma
+        const BASE_HEAT_RATE = 100 / (4 * 3600);
         const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
 
-        // Offline madencilik hesaplaması (En önemli kısım)
+        // Offline madencilik hesaplaması
         if (gapInSeconds > 0 && user.heat < 100) {
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
@@ -91,30 +80,25 @@ app.get('/api/user/:id', async (req, res) => {
         await user.save();
         res.json(user);
     } catch (err) {
-        console.error("User Fetch Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// Verileri Kaydetme (GÜNCEL: Streak ve lastCheckIn eklendi)
+// Verileri Kaydetme (GÜNCELLENDİ: Günlük giriş verileri eklendi)
 app.post('/api/save', async (req, res) => {
     try {
         const { 
-            telegramId, balance, gpus, heat, mined, 
-            coolingPower, inviteCount, groupShareCount, 
-            newCompletedTask, streak, lastCheckIn 
+            telegramId, balance, gpus, heat, mined, coolingPower, 
+            inviteCount, groupShareCount, newCompletedTask,
+            streak, lastCheckIn 
         } = req.body;
         
         let updateFields = { 
-            balance, 
-            gpus, 
-            heat, 
-            mined,
-            coolingPower,
+            balance, gpus, heat, mined, coolingPower,
             invitedCount: inviteCount,
             groupShares: groupShareCount,
-            streak: streak,
-            lastCheckIn: lastCheckIn,
+            streak,
+            lastCheckIn,
             lastUpdate: new Date() 
         };
 
@@ -123,15 +107,13 @@ app.post('/api/save', async (req, res) => {
             updateQuery.$addToSet = { completedTasks: newCompletedTask };
         }
 
-        const result = await User.findOneAndUpdate(
+        await User.findOneAndUpdate(
             { telegramId }, 
             updateQuery,
-            { upsert: true, new: true }
+            { upsert: true }
         );
-        
-        res.status(200).json({ success: true, user: result });
+        res.sendStatus(200);
     } catch (err) {
-        console.error("Kayıt Hatası:", err);
         res.status(500).send(err.message);
     }
 });
@@ -146,58 +128,35 @@ app.get('/api/tasks', async (req, res) => {
     }
 });
 
-// --- ADMIN API UÇLARI ---
-app.get('/api/admin/users', async (req, res) => {
-    try {
-        const users = await User.find().sort({ balance: -1 });
-        res.json(users);
-    } catch (err) { res.status(500).send(err.message); }
-});
-
-app.post('/api/admin/add-task', async (req, res) => {
-    try {
-        const { title, reward, link } = req.body;
-        const task = await Task.create({ title, reward, link });
-        res.json(task);
-    } catch (err) { res.status(500).send(err.message); }
-});
-
-app.delete('/api/admin/delete-task/:id', async (req, res) => {
-    try {
-        await Task.findByIdAndDelete(req.params.id);
-        res.json({ success: true });
-    } catch (err) { res.status(500).send(err.message); }
-});
-
-// --- PARA ÇEKME (WITHDRAW) ---
+// --- PARA ÇEKME (WITHDRAW) ENDPOINT ---
 app.post('/api/withdraw', async (req, res) => {
     const { telegramId, address, amount } = req.body;
     try {
         const user = await User.findOne({ telegramId });
         if (!user || user.balance < 300) {
-            return res.status(400).json({ success: false, message: "Limit Not Reached! Min 300 WLD required." });
+            return res.status(400).json({ success: false, message: "Min 300 WLD required." });
         }
         if (user.invitedCount < 10 || user.groupShares < 5) {
-            return res.status(400).json({ success: false, message: "Tasks not completed! 10 invites and 5 shares required." });
+            return res.status(400).json({ success: false, message: "Tasks not completed!" });
         }
 
-        console.log(`💸 WITHDRAWAL REQUEST: User ${telegramId} | Amount: ${amount} WLD | Addr: ${address}`);
+        console.log(`💸 WITHDRAW: User ${telegramId} requested ${amount} WLD to ${address}`);
+
         user.balance = 0;
         await user.save();
         res.json({ success: true });
     } catch (err) {
-        console.error("Withdraw Error:", err);
-        res.status(500).json({ success: false, message: "Server error." });
+        res.status(500).json({ success: false });
     }
 });
 
-// --- TELEGRAM STARS FATURA ---
+// --- TELEGRAM STARS İŞLEMLERİ ---
 app.post('/api/create-stars-invoice', async (req, res) => {
     const { telegramId, type, power, starPrice, title } = req.body;
     try {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
             title: `GigaMine: ${title}`,
-            description: `${title} üretimi artırır!`,
+            description: `${title} Upgrade`,
             payload: JSON.stringify({ telegramId, type, power, title }),
             provider_token: "", 
             currency: "XTR", 
@@ -205,15 +164,14 @@ app.post('/api/create-stars-invoice', async (req, res) => {
         });
         res.json({ invoiceUrl });
     } catch (err) {
-        res.status(500).json({ error: "Invoice error." });
+        res.status(500).json({ error: "Invoice failed" });
     }
 });
 
 bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
 bot.on('successful_payment', async (ctx) => {
-    const payment = ctx.message.successful_payment;
-    const payload = JSON.parse(payment.invoice_payload);
+    const payload = JSON.parse(ctx.message.successful_payment.invoice_payload);
     const { telegramId, type, power, title } = payload;
     try {
         let user = await User.findOne({ telegramId });
@@ -221,36 +179,44 @@ bot.on('successful_payment', async (ctx) => {
             if (type === 'gpu') user.gpus += power;
             else if (type === 'cool') user.coolingPower += (power * 4.0); 
             await user.save();
-            await ctx.reply(`✅ Purchase Successful! ${title} installed.`);
+            await ctx.reply(`✅ Success! ${title} installed.`);
         }
-    } catch (err) { console.error("Payment Error:", err); }
+    } catch (err) { console.error(err); }
 });
 
 // 4. BOT KOMUTLARI & REFERANS SİSTEMİ
 bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
     const startPayload = ctx.payload;
+
     try {
         let user = await User.findOne({ telegramId });
+        
         if (!user) {
             user = await User.create({ telegramId });
+
             if (startPayload && !isNaN(startPayload) && parseInt(startPayload) !== telegramId) {
                 const inviterId = parseInt(startPayload);
+                
+                // Referans ödülü: Davet edene +40 WLD
                 await User.findOneAndUpdate(
                     { telegramId: inviterId },
                     { $inc: { invitedCount: 1, balance: 40 } }
                 );
+                
                 bot.telegram.sendMessage(inviterId, "🎁 New friend joined! You earned +40 WLD reward.");
             }
         }
+
         const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
-        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\n🔗 Referral Link:\n${botRefLink}\n\n🔥 Collect 300 WLD and invite 10 friends to withdraw!`, 
+
+        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\n🔗 Your Referral Link:\n${botRefLink}\n\n🎁 Reward: +40 WLD for each invite!`, 
             Markup.inlineKeyboard([
                 [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)],
-                [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Join GigaMine and mine WLD! ⚡`)]
+                [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent("Join GigaMine and mine WLD for free! ⚡")}`)]
             ])
         );
-    } catch (err) { console.error("Start Error:", err); }
+    } catch (err) { console.error(err); }
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
@@ -258,7 +224,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 bot.launch().then(() => console.log("GigaMinebot is Live! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is active on port ${PORT}.`);
+    console.log(`Server running on port ${PORT}.`);
 });
 
 // Ping
