@@ -16,7 +16,7 @@ const bot = new Telegraf(BOT_TOKEN);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// 2. VERİTABANI MODELİ
+// 2. VERİTABANI MODELİ (Geliştirilmiş)
 const userSchema = new mongoose.Schema({
     telegramId: { type: Number, unique: true },
     balance: { type: Number, default: 0 },   // Ana bakiye (WLD COIN)
@@ -24,7 +24,10 @@ const userSchema = new mongoose.Schema({
     gpus: { type: Number, default: 1 },
     coolingPower: { type: Number, default: 1 }, // Soğutma gücü
     heat: { type: Number, default: 0 }, 
-    lastUpdate: { type: Date, default: Date.now }
+    lastUpdate: { type: Date, default: Date.now },
+    // Yeni eklenen davet takip alanları
+    invitedCount: { type: Number, default: 0 },
+    groupShares: { type: Number, default: 0 }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -35,7 +38,7 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
-// Kullanıcı verilerini getirme (Çevrimdışı Kazanç Hesaplamalı)
+// Kullanıcı verilerini getirme
 app.get('/api/user/:id', async (req, res) => {
     try {
         let user = await User.findOne({ telegramId: req.params.id });
@@ -71,7 +74,7 @@ app.get('/api/user/:id', async (req, res) => {
 // Verileri Kaydetme
 app.post('/api/save', async (req, res) => {
     try {
-        const { telegramId, balance, gpus, heat, mined, coolingPower } = req.body;
+        const { telegramId, balance, gpus, heat, mined, coolingPower, invitedCount, groupShares } = req.body;
         
         await User.findOneAndUpdate(
             { telegramId }, 
@@ -80,7 +83,9 @@ app.post('/api/save', async (req, res) => {
                 gpus, 
                 heat, 
                 mined,
-                coolingPower, 
+                coolingPower,
+                invitedCount, // Davet sayılarını kaydet
+                groupShares,  // Grup paylaşım sayılarını kaydet
                 lastUpdate: new Date() 
             },
             { upsert: true }
@@ -98,22 +103,27 @@ app.post('/api/withdraw', async (req, res) => {
     try {
         const user = await User.findOne({ telegramId });
 
+        // Şartlar: 300 WLD + 20 Davet + 5 Grup Paylaşımı
         if (!user || user.balance < 300) {
             return res.status(400).json({ success: false, message: "Yetersiz bakiye! Minimum 300 WLD gereklidir." });
         }
+        
+        if (user.invitedCount < 20 || user.groupShares < 5) {
+            return res.status(400).json({ success: false, message: "Görevler tamamlanmadı! 20 davet ve 5 grup paylaşımı şart." });
+        }
 
-        // Çekim talebi kaydı (Terminaline düşer)
+        // Çekim talebi kaydı
         console.log(`
         ======= 💸 YENİ ÇEKİM TALEBİ (GigaMine) =======
         KULLANICI ID : ${telegramId}
         MİKTAR       : ${amount.toFixed(2)} WLD
         CÜZDAN ADRESİ: ${address}
-        TİP          : USDT TRC-20
+        DAVET DURUMU : ${user.invitedCount}/20 Davet - ${user.groupShares}/5 Grup
         TARİH        : ${new Date().toLocaleString('tr-TR')}
         ==============================================
         `);
 
-        // Kullanıcı bakiyesini sıfırla (Güvenlik için önce sıfırlıyoruz)
+        // Kullanıcı bakiyesini sıfırla
         user.balance = 0;
         await user.save();
 
@@ -130,8 +140,8 @@ app.post('/api/create-stars-invoice', async (req, res) => {
 
     try {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
-            title: `GigaMine Upgrade: ${title}`,
-            description: `${title} ile üretim gücünüzü artırın!`,
+            title: `GigaMine: ${title}`,
+            description: `${title} ile WLD COIN üretim gücünüzü artırın!`,
             payload: JSON.stringify({ telegramId, type, power, title }),
             provider_token: "", 
             currency: "XTR", 
@@ -145,7 +155,7 @@ app.post('/api/create-stars-invoice', async (req, res) => {
     }
 });
 
-// --- ÖDEME DOĞRULAMA (WEBHOOK) ---
+// --- ÖDEME DOĞRULAMA ---
 bot.on('pre_checkout_query', (ctx) => {
     ctx.answerPreCheckoutQuery(true);
 });
@@ -161,21 +171,19 @@ bot.on('successful_payment', async (ctx) => {
             if (type === 'gpu') {
                 user.gpus += power;
             } else if (type === 'cool') {
-                user.coolingPower += (power * 1.0); // Arayüzdeki katlamalı soğutma gücüyle uyumlu
+                user.coolingPower += (power * 4.0); 
             }
             await user.save();
-            console.log(`ÖDEME ONAYLANDI: User ${telegramId}, ${title} (+${power})`);
-            
-            await ctx.reply(`✅ Tebrikler! ${title} başarıyla kuruldu. Kazım performansınız güncellendi.`);
+            await ctx.reply(`✅ Satın aldığınız ${title || type.toUpperCase()} başarıyla kuruldu.`);
         }
     } catch (err) {
-        console.error("Başarılı ödeme sonrası DB güncelleme hatası:", err);
+        console.error("Ödeme sonrası hata:", err);
     }
 });
 
 // 4. BOT KOMUTLARI
 bot.start((ctx) => {
-    ctx.reply(`🚀 GigaMine Pro'ya Hoş Geldin!\n\nSen uyurken bile GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 Minimum çekim: 300 WLD\n💎 Cüzdan panelini sağ üstteki bakiye kısmından açabilirsin!`, 
+    ctx.reply(`🚀 GigaMinebot'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 300 WLD biriktir, 20 arkadaşını davet et ve 5 grupta paylaş çekimini yap!`, 
         Markup.inlineKeyboard([
             [Markup.button.webApp('🎮 Madenciliği Başlat', WEBAPP_URL)]
         ])
@@ -184,13 +192,13 @@ bot.start((ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("GigaMinebot API & Bot Aktif! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot Yayında! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sunucu ${PORT} portunda aktif.`);
 });
 
-// Sunucuyu uyandırma döngüsü (Opsiyonel)
+// Sunucuyu uyandırma döngüsü
 setInterval(() => {
     if(WEBAPP_URL) axios.get(WEBAPP_URL).catch(() => {});
 }, 600000);
