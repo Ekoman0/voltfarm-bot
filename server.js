@@ -16,7 +16,7 @@ const bot = new Telegraf(BOT_TOKEN);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// 2. VERİTABANI MODELİ (Geliştirilmiş)
+// 2. VERİTABANI MODELİ
 const userSchema = new mongoose.Schema({
     telegramId: { type: Number, unique: true },
     balance: { type: Number, default: 0 },   // Ana bakiye (WLD COIN)
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     coolingPower: { type: Number, default: 1 }, // Soğutma gücü
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now },
-    // Yeni eklenen davet takip alanları
+    // Frontend ile uyumlu davet ve paylaşım alanları
     invitedCount: { type: Number, default: 0 },
     groupShares: { type: Number, default: 0 }
 });
@@ -71,10 +71,10 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
-// Verileri Kaydetme
+// Verileri Kaydetme (Frontend'den gelen inviteCount ve groupShares bilgilerini de işler)
 app.post('/api/save', async (req, res) => {
     try {
-        const { telegramId, balance, gpus, heat, mined, coolingPower, invitedCount, groupShares } = req.body;
+        const { telegramId, balance, gpus, heat, mined, coolingPower, inviteCount, groupShareCount } = req.body;
         
         await User.findOneAndUpdate(
             { telegramId }, 
@@ -84,8 +84,8 @@ app.post('/api/save', async (req, res) => {
                 heat, 
                 mined,
                 coolingPower,
-                invitedCount, // Davet sayılarını kaydet
-                groupShares,  // Grup paylaşım sayılarını kaydet
+                invitedCount: inviteCount, // Frontend'deki değişken adıyla eşleştirildi
+                groupShares: groupShareCount, // Frontend'deki değişken adıyla eşleştirildi
                 lastUpdate: new Date() 
             },
             { upsert: true }
@@ -105,22 +105,23 @@ app.post('/api/withdraw', async (req, res) => {
 
         // Şartlar: 300 WLD + 20 Davet + 5 Grup Paylaşımı
         if (!user || user.balance < 300) {
-            return res.status(400).json({ success: false, message: "Yetersiz bakiye! Minimum 300 WLD gereklidir." });
+            return res.status(400).json({ success: false, message: "Limit Not Reached! Min 300 WLD required." });
         }
         
+        // invitedCount ve groupShares kontrolü (Frontend'den save ile gelen veriler)
         if (user.invitedCount < 20 || user.groupShares < 5) {
-            return res.status(400).json({ success: false, message: "Görevler tamamlanmadı! 20 davet ve 5 grup paylaşımı şart." });
+            return res.status(400).json({ success: false, message: "Tasks not completed! 20 invites and 5 shares required." });
         }
 
         // Çekim talebi kaydı
         console.log(`
-        ======= 💸 YENİ ÇEKİM TALEBİ (GigaMine) =======
-        KULLANICI ID : ${telegramId}
-        MİKTAR       : ${amount.toFixed(2)} WLD
-        CÜZDAN ADRESİ: ${address}
-        DAVET DURUMU : ${user.invitedCount}/20 Davet - ${user.groupShares}/5 Grup
-        TARİH        : ${new Date().toLocaleString('tr-TR')}
-        ==============================================
+        ======= 💸 NEW WITHDRAWAL REQUEST (GigaMine) =======
+        USER ID      : ${telegramId}
+        AMOUNT       : ${amount.toFixed(2)} WLD
+        WALLET ADDR  : ${address}
+        TASKS STATUS : ${user.invitedCount}/20 Invites - ${user.groupShares}/5 Groups
+        DATE         : ${new Date().toLocaleString('tr-TR')}
+        ====================================================
         `);
 
         // Kullanıcı bakiyesini sıfırla
@@ -129,8 +130,8 @@ app.post('/api/withdraw', async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        console.error("Çekim hatası:", err);
-        res.status(500).json({ success: false, message: "Sunucu hatası oluştu." });
+        console.error("Withdraw Error:", err);
+        res.status(500).json({ success: false, message: "Server error." });
     }
 });
 
@@ -150,8 +151,8 @@ app.post('/api/create-stars-invoice', async (req, res) => {
         
         res.json({ invoiceUrl });
     } catch (err) {
-        console.error("Fatura Hatası:", err);
-        res.status(500).json({ error: "Fatura oluşturulamadı." });
+        console.error("Invoice Error:", err);
+        res.status(500).json({ error: "Invoice could not be created." });
     }
 });
 
@@ -174,28 +175,28 @@ bot.on('successful_payment', async (ctx) => {
                 user.coolingPower += (power * 4.0); 
             }
             await user.save();
-            await ctx.reply(`✅ Satın aldığınız ${title || type.toUpperCase()} başarıyla kuruldu.`);
+            await ctx.reply(`✅ Purchase Successful! ${title || type.toUpperCase()} has been installed.`);
         }
     } catch (err) {
-        console.error("Ödeme sonrası hata:", err);
+        console.error("Payment Success Error:", err);
     }
 });
 
 // 4. BOT KOMUTLARI
 bot.start((ctx) => {
-    ctx.reply(`🚀 GigaMinebot'a Hoş Geldin!\n\nSen kapatsan da GPU'ların WLD COIN kazmaya devam eder.\n\n🔥 300 WLD biriktir, 20 arkadaşını davet et ve 5 grupta paylaş çekimini yap!`, 
+    ctx.reply(`🚀 Welcome to GigaMine!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔥 Collect 300 WLD, invite 20 friends, and share in 5 groups to withdraw!`, 
         Markup.inlineKeyboard([
-            [Markup.button.webApp('🎮 Madenciliği Başlat', WEBAPP_URL)]
+            [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)]
         ])
     );
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-bot.launch().then(() => console.log("GigaMinebot Yayında! 🤖"));
+bot.launch().then(() => console.log("GigaMinebot is Live! 🤖"));
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Sunucu ${PORT} portunda aktif.`);
+    console.log(`Server is active on port ${PORT}.`);
 });
 
 // Sunucuyu uyandırma döngüsü
