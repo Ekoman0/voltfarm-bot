@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     coolingPower: { type: Number, default: 1 }, // Soğutma gücü
     heat: { type: Number, default: 0 }, 
     lastUpdate: { type: Date, default: Date.now },
-    // Frontend ile uyumlu davet ve paylaşım alanları
+    // Frontend'deki inviteCount ve groupShareCount ile eşleşen alanlar
     invitedCount: { type: Number, default: 0 },
     groupShares: { type: Number, default: 0 }
 });
@@ -71,7 +71,7 @@ app.get('/api/user/:id', async (req, res) => {
     }
 });
 
-// Verileri Kaydetme (Frontend'den gelen inviteCount ve groupShares bilgilerini de işler)
+// Verileri Kaydetme
 app.post('/api/save', async (req, res) => {
     try {
         const { telegramId, balance, gpus, heat, mined, coolingPower, inviteCount, groupShareCount } = req.body;
@@ -84,8 +84,8 @@ app.post('/api/save', async (req, res) => {
                 heat, 
                 mined,
                 coolingPower,
-                invitedCount: inviteCount, // Frontend'deki değişken adıyla eşleştirildi
-                groupShares: groupShareCount, // Frontend'deki değişken adıyla eşleştirildi
+                invitedCount: inviteCount,     // Frontend'den gelen inviteCount
+                groupShares: groupShareCount,  // Frontend'den gelen groupShareCount
                 lastUpdate: new Date() 
             },
             { upsert: true }
@@ -108,12 +108,11 @@ app.post('/api/withdraw', async (req, res) => {
             return res.status(400).json({ success: false, message: "Limit Not Reached! Min 300 WLD required." });
         }
         
-        // invitedCount ve groupShares kontrolü (Frontend'den save ile gelen veriler)
         if (user.invitedCount < 20 || user.groupShares < 5) {
             return res.status(400).json({ success: false, message: "Tasks not completed! 20 invites and 5 shares required." });
         }
 
-        // Çekim talebi kaydı
+        // Çekim talebi kaydı (Terminalde görünür)
         console.log(`
         ======= 💸 NEW WITHDRAWAL REQUEST (GigaMine) =======
         USER ID      : ${telegramId}
