@@ -122,6 +122,7 @@
         .cool-color { color: var(--cool-blue); }
         .market-price { color: var(--neon-gold); font-weight: bold; margin-top: 8px; }
 
+        /* Yeni Eklenen Stiller */
         .referral-card {
             background: var(--card-bg); border-radius: 20px; padding: 20px;
             border: 1px dashed var(--accent); margin-bottom: 20px; text-align: center;
@@ -139,14 +140,12 @@
         }
         .task-info h4 { margin: 0; font-size: 14px; color: white; }
         .task-info p { margin: 5px 0 0 0; font-size: 12px; color: var(--neon-gold); font-weight: bold; }
-        
         .btn-go {
-            background: var(--accent); color: white; border: none; padding: 10px 20px;
+            background: var(--accent); color: white; border: none; padding: 8px 15px;
             border-radius: 10px; font-family: 'Orbitron'; font-size: 10px; cursor: pointer;
-            transition: 0.3s;
         }
-        .btn-claimed {
-            background: #1e293b !important; color: #64748b !important; cursor: default;
+        .btn-go.claimed {
+            background: #334155; color: #94a3b8; cursor: default;
         }
 
         #wallet-sheet {
@@ -186,19 +185,10 @@
 
         #withdraw-step-limit { display: block; }
         #withdraw-step-tasks { display: none; }
-
-        /* Toast Bildirimi Stili */
-        #toast-msg {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--neon-green); color: white; padding: 10px 25px;
-            border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 9999;
-            display: none; box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
-        }
     </style>
 </head>
 <body>
 
-<div id="toast-msg">Reward Claimed! +<span id="reward-amt">0</span> WLD</div>
 <div class="overlay" id="overlay" onclick="toggleWallet()"></div>
 
 <div class="container">
@@ -257,20 +247,37 @@
         </div>
     </div>
 
+    <div class="section-header"><i class="fas fa-snowflake"></i> COOLING SHOP (STARS)</div>
+    <div class="market-scroll">
+        <div class="market-card" onclick="buyItem('cool', 1, 200, 'Basic Fan')">
+            <div class="market-icon">❄️</div>
+            <div style="font-size: 14px;">Basic Fan</div>
+            <div class="market-benefit cool-color">+4.0 Hours</div>
+            <div class="market-price">⭐ 200</div>
+        </div>
+        <div class="market-card" onclick="buyItem('cool', 5.5, 1000, 'Liquid Pro')">
+            <div class="market-icon">🧊</div>
+            <div style="font-size: 14px;">Liquid Pro</div>
+            <div class="market-benefit cool-color">+22 Hours</div>
+            <div class="market-price">⭐ 1000</div>
+        </div>
+    </div>
+
     <div class="section-header"><i class="fas fa-user-plus"></i> REFERRAL PROGRAM</div>
     <div class="referral-card">
-        <div style="font-size: 16px; font-weight: bold; color: var(--neon-green);">EARN +10 WLD PER FRIEND</div>
+        <div style="font-size: 16px; font-weight: bold; color: var(--neon-green);">EARN +40 WLD PER FRIEND</div>
         <div class="ref-link-box" id="ref-link-display">https://t.me/GigaMinebot?start=...</div>
         <button class="btn-claim" style="padding: 10px; font-size: 12px;" onclick="inviteFriend()">INVITE & EARN</button>
     </div>
 
-    <div class="section-header"><i class="fas fa-tasks"></i> DAILY MISSIONS</div>
+    <div class="section-header"><i class="fas fa-tasks"></i> ACTIVE MISSIONS</div>
     <div class="task-list" id="daily-task-container">
         </div>
 </div>
 
 <div id="wallet-sheet">
     <div class="sheet-handle"></div>
+    
     <div id="withdraw-step-limit">
         <h2 style="font-family: 'Orbitron'; color: var(--accent); margin: 0;">WITHDRAW WLD</h2>
         <div style="text-align: center; margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 20px;">
@@ -287,25 +294,32 @@
     <div id="withdraw-step-tasks">
         <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); margin: 0;">WITHDRAWAL UNLOCKED!</h2>
         <p style="color: #94a3b8; font-size: 14px;">Complete the security steps to release your 300+ WLD.</p>
+
         <label style="font-size: 12px; color: var(--neon-gold);">USDT TRC-20 ADDRESS</label>
         <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
+
         <div class="task-card">
             <div class="task-row">
                 <span><i class="fas fa-users"></i> Invite 10 Friends</span>
                 <span id="friends-count">0 / 10</span>
             </div>
             <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
+
             <div class="task-row" style="margin-top: 15px;">
                 <span><i class="fas fa-share-nodes"></i> Share in 5 Groups</span>
                 <span id="groups-count">0 / 5</span>
             </div>
             <div class="progress-container"><div id="groups-bar" class="progress-fill"></div></div>
         </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
             <button class="btn-claim" style="font-size: 12px; padding: 12px;" onclick="inviteFriend()">GET REF LINK</button>
             <button class="btn-claim" style="font-size: 12px; padding: 12px; background: #8b5cf6;" onclick="shareInGroups()">SHARE GROUPS</button>
         </div>
-        <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">SEND WITHDRAWAL REQUEST</button>
+
+        <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">
+            SEND WITHDRAWAL REQUEST
+        </button>
     </div>
 </div>
 
@@ -320,20 +334,58 @@
     let coolingPower = 1; 
     let inviteCount = 0;
     let groupShareCount = 0; 
-    let completedTasks = []; 
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
     const BASE_HEAT_RATE = 100 / (4 * 3600); 
 
-    // ÖZEL GÖREVLERİN (GÜNCEL)
+    // GÜNCELLENMİŞ GÖREV LİSTESİ - İSTEDİĞİN 3 LİNK
+    // Reward miktarlarını da 50 WLD yaptım, istersen değiştirebilirsin.
     const dailyTasks = [
-        { id: "task_hunter", title: "Join Bonus Hunters", reward: 20, link: "https://t.me/Bonushunters1bot?start=c0133f38-e262-4b33-afc7-0f98e99b4d3c" },
-        { id: "task_world", title: "Join World Network", reward: 15, link: "https://t.me/worldnetworkofficial" },
-        { id: "task_x", title: "Follow Worldcoin on X", reward: 10, link: "https://x.com/worldcoin" }
+        { 
+            id: 1, 
+            title: "Join Bonus Hunters", 
+            reward: 50, 
+            link: "https://t.me/Bonushunters1bot?start=c0133f38-e262-4b33-afc7-0f98e99b4d3c",
+            btnText: "JOIN"
+        },
+        { 
+            id: 2, 
+            title: "Join World Network", 
+            reward: 50, 
+            link: "https://t.me/worldnetworkofficial",
+            btnText: "JOIN"
+        },
+        { 
+            id: 3, 
+            title: "Check Worldcoin X", 
+            reward: 50, 
+            link: "https://x.com/worldcoin",
+            btnText: "OPEN X"
+        }
     ];
 
     if(tg.initDataUnsafe.user) {
         document.getElementById('user-name').innerText = tg.initDataUnsafe.user.first_name.toUpperCase();
+    }
+
+    function toggleWallet() {
+        const sheet = document.getElementById('wallet-sheet');
+        const overlay = document.getElementById('overlay');
+        const stepLimit = document.getElementById('withdraw-step-limit');
+        const stepTasks = document.getElementById('withdraw-step-tasks');
+
+        sheet.classList.toggle('active');
+        overlay.style.display = sheet.classList.contains('active') ? 'block' : 'none';
+
+        if (totalBalance >= 300) {
+            stepLimit.style.display = 'none';
+            stepTasks.style.display = 'block';
+        } else {
+            stepLimit.style.display = 'block';
+            stepTasks.style.display = 'none';
+            document.getElementById('sheet-current-balance-text').innerText = totalBalance.toFixed(2);
+        }
+        updateWithdrawUI();
     }
 
     async function loadUserData() {
@@ -347,52 +399,66 @@
             coolingPower = data.coolingPower || 1; 
             inviteCount = data.invitedCount || 0;
             groupShareCount = data.groupShares || 0;
-            completedTasks = data.completedTasks || [];
             updateUI();
-            renderTasks();
+            renderTasks(data.completedTasks || []);
             document.getElementById('ref-link-display').innerText = `https://t.me/GigaMinebot?start=${telegramId}`;
-        } catch (err) { console.error("Data load error:", err); }
+        } catch (err) { 
+            // Hata durumunda (local test) varsayılan
+            renderTasks([]);
+            console.error("Data load error:", err); 
+        }
     }
 
-    function renderTasks() {
+    function renderTasks(completedTaskIds) {
         const container = document.getElementById('daily-task-container');
         container.innerHTML = dailyTasks.map(task => {
-            const isDone = completedTasks.includes(task.id);
-            return `
+            const isCompleted = completedTaskIds.includes(task.id);
+            if(isCompleted) {
+                return `
                 <div class="task-item">
+                    <div class="task-info">
+                        <h4>${task.title}</h4>
+                        <p style="color:#22c55e;">COMPLETED</p>
+                    </div>
+                    <button class="btn-go claimed">CLAIMED</button>
+                </div>`;
+            } else {
+                return `
+                <div class="task-item" id="task-box-${task.id}">
                     <div class="task-info">
                         <h4>${task.title}</h4>
                         <p>+${task.reward} WLD</p>
                     </div>
-                    <button class="btn-go ${isDone ? 'btn-claimed' : ''}" 
-                        onclick="${isDone ? '' : `doTask('${task.id}', '${task.link}', ${task.reward})`}">
-                        ${isDone ? 'CLAIMED' : 'GO'}
-                    </button>
-                </div>
-            `;
+                    <button id="btn-task-${task.id}" class="btn-go" onclick="doTask(${task.id}, '${task.link}', ${task.reward})">${task.btnText}</button>
+                </div>`;
+            }
         }).join('');
     }
 
     function doTask(id, link, reward) {
+        // Linki aç
         tg.openLink(link);
-        // Onay sormadan 3 saniye sonra ödülü veriyoruz
-        setTimeout(() => {
-            if (!completedTasks.includes(id)) {
+        
+        // Kullanıcı uygulamaya geri döndüğünde butonu CLAIMED yap
+        const btn = document.getElementById(`btn-task-${id}`);
+        if(btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // 3 Saniye bekleme efekti (geri dönmesi için)
+            setTimeout(() => {
+                btn.classList.add('claimed');
+                btn.innerText = "CLAIMED";
+                btn.onclick = null; // Tıklamayı devre dışı bırak
+                
+                // Bakiyeyi güncelle
                 totalBalance += reward;
-                completedTasks.push(id);
-                showToast(reward);
                 updateUI();
-                renderTasks();
-                saveUserData();
-            }
-        }, 3000);
-    }
-
-    function showToast(amt) {
-        const toast = document.getElementById('toast-msg');
-        document.getElementById('reward-amt').innerText = amt;
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+                tg.HapticFeedback.notificationOccurred('success');
+                
+                // Server'a kaydet (görev yapıldı olarak)
+                saveUserData(id); // ID parametresi ile hangi görevi yaptığını kaydetmeye çalışır
+            }, 3000);
+        }
     }
 
     function updateUI() {
@@ -424,6 +490,7 @@
 
         document.getElementById('friends-count').innerText = `${inviteCount} / 10`;
         document.getElementById('groups-count').innerText = `${groupShareCount} / 5`;
+        
         document.getElementById('friends-bar').style.width = (Math.min(inviteCount, 10) / 10 * 100) + '%';
         document.getElementById('groups-bar').style.width = (Math.min(groupShareCount, 5) / 5 * 100) + '%';
 
@@ -437,55 +504,67 @@
         }
     }
 
-    function toggleWallet() {
-        const sheet = document.getElementById('wallet-sheet');
-        const overlay = document.getElementById('overlay');
-        const stepLimit = document.getElementById('withdraw-step-limit');
-        const stepTasks = document.getElementById('withdraw-step-tasks');
-
-        sheet.classList.toggle('active');
-        overlay.style.display = sheet.classList.contains('active') ? 'block' : 'none';
-
-        if (totalBalance >= 300) {
-            stepLimit.style.display = 'none';
-            stepTasks.style.display = 'block';
-        } else {
-            stepLimit.style.display = 'block';
-            stepTasks.style.display = 'none';
-            document.getElementById('sheet-current-balance-text').innerText = totalBalance.toFixed(2);
-        }
-        updateWithdrawUI();
-    }
-
     function inviteFriend() {
-        const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
-        const text = "🚀 Join GigaMine! Mine WLD for free and withdraw! ⚡";
+        const botUsername = "GigaMinebot";
+        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
+        const text = "🚀 Join GigaMine! Mine WLD for free and withdraw to your wallet! ⚡";
         tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent(text)}`);
     }
 
     function shareInGroups() {
-        const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
+        const botUsername = "GigaMinebot";
+        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
         tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Check this group mining!`);
+        
         setTimeout(() => {
-            if(groupShareCount < 5) groupShareCount++;
-            updateWithdrawUI();
-            saveUserData();
-        }, 4000);
+            tg.showConfirm("Did you share the link in a group?", (confirm) => {
+                if(confirm) {
+                    if(groupShareCount < 5) groupShareCount++;
+                    updateWithdrawUI();
+                    saveUserData();
+                }
+            });
+        }, 3000);
     }
 
-    async function saveUserData() {
-        try {
-            await fetch('/api/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, 
-                    coolingPower, inviteCount: inviteCount, groupShareCount: groupShareCount,
-                    completedTasks: completedTasks
-                })
-            });
-        } catch (err) { console.error("Save error:", err); }
+    function processWithdraw() {
+        const address = document.getElementById('wallet-address').value;
+        if (totalBalance < 300) return;
+
+        if (!address || address.length < 15) {
+            tg.showAlert("Enter a valid USDT TRC-20 Address!");
+            return;
+        }
+        if (inviteCount < 10 || groupShareCount < 5) {
+            tg.showAlert("Complete tasks first!");
+            return;
+        }
+
+        tg.showConfirm(`Withdraw ${totalBalance.toFixed(2)} WLD to ${address}?`, async (ok) => {
+            if(ok) {
+                const res = await fetch('/api/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramId, address, amount: totalBalance })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    tg.showAlert("Request sent! Verification takes 24-48h.");
+                    totalBalance = 0;
+                    updateUI();
+                    toggleWallet();
+                }
+            }
+        });
     }
+
+    setInterval(() => {
+        if (heat < 100) {
+            currentMined += (gpus * 0.0005);
+            heat = Math.min(100, heat + (BASE_HEAT_RATE / coolingPower));
+        }
+        updateUI();
+    }, 1000);
 
     function claimMined() {
         if (currentMined > 0) {
@@ -504,13 +583,47 @@
         tg.HapticFeedback.impactOccurred('medium');
     }
 
-    setInterval(() => {
-        if (heat < 100) {
-            currentMined += (gpus * 0.0005);
-            heat = Math.min(100, heat + (BASE_HEAT_RATE / coolingPower));
-        }
-        updateUI();
-    }, 1000);
+    async function saveUserData(completedTaskId = null) {
+        try {
+            // Eğer görev tamamlandıysa completedTasks array'ine eklemek için backend'e yolla
+            await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId, 
+                    balance: totalBalance, 
+                    gpus, 
+                    heat, 
+                    mined: currentMined, 
+                    coolingPower, 
+                    inviteCount: inviteCount, 
+                    groupShareCount: groupShareCount,
+                    newCompletedTask: completedTaskId // Opsiyonel parametre
+                })
+            });
+        } catch (err) { console.error("Save error:", err); }
+    }
+
+    async function buyItem(type, power, starPrice, title) {
+        tg.showConfirm(`${title} (⭐ ${starPrice})?`, async (confirmed) => {
+            if(confirmed) {
+                const res = await fetch('/api/create-stars-invoice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramId, type, power, starPrice, title })
+                });
+                const data = await res.json();
+                if (data.invoiceUrl) {
+                    tg.openInvoice(data.invoiceUrl, (status) => {
+                        if (status === 'paid') {
+                            tg.showAlert("Paid!");
+                            setTimeout(loadUserData, 1500);
+                        }
+                    });
+                }
+            }
+        });
+    }
 
     loadUserData();
     setInterval(saveUserData, 20000);
