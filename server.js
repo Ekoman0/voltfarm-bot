@@ -9,6 +9,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const MONGO_URI = process.env.MONGO_URI; 
 const WEBAPP_URL = process.env.WEBAPP_URL;
 const PORT = process.env.PORT || 3000;
+const ADMIN_ID = "696e483bec2f110c400f3fc4"; // Senin Telegram ID'n
 
 const app = express();
 const bot = new Telegraf(BOT_TOKEN);
@@ -27,7 +28,6 @@ const userSchema = new mongoose.Schema({
     lastUpdate: { type: Date, default: Date.now },
     invitedCount: { type: Number, default: 0 },
     groupShares: { type: Number, default: 0 },
-    // CastError hatasını önlemek için Mixed
     completedTasks: { type: [mongoose.Schema.Types.Mixed], default: [] }, 
     streak: { type: Number, default: 0 },
     lastCheckIn: { type: Number, default: 0 }
@@ -50,33 +50,20 @@ mongoose.connect(MONGO_URI)
 
 // 3. API UÇLARI
 
-// --- YENİ EKLENEN: WLD GÜNCEL FİYAT API ---
+// WLD GÜNCEL FİYAT API
 app.get('/api/wld-price', async (req, res) => {
     try {
-        // Binance API üzerinden WLD/USDT paritesini çekiyoruz
         const response = await axios.get('https://api.binance.com/api/v3/ticker/24hr?symbol=WLDUSDT');
         const data = response.data;
-
-        // Fiyatı virgülden sonra 4 hane yap (Örn: 1.8423)
         const price = parseFloat(data.lastPrice).toFixed(4);
-        
-        // Değişim yüzdesini al (Örn: 5.20)
         let change = parseFloat(data.priceChangePercent).toFixed(2);
-        
-        // Pozitifse başına + koy, negatifse zaten - var
         if (parseFloat(change) > 0) change = "+" + change;
-
-        res.json({ 
-            price: price, 
-            change: change 
-        });
+        res.json({ price: price, change: change });
     } catch (error) {
         console.error("Fiyat Çekme Hatası:", error.message);
-        // Hata durumunda varsayılan değer gönder
         res.json({ price: "---", change: "0.00" });
     }
 });
-// ------------------------------------------
 
 // Kullanıcı verilerini getirme
 app.get('/api/user/:id', async (req, res) => {
@@ -85,24 +72,19 @@ app.get('/api/user/:id', async (req, res) => {
         if (!user) {
             user = await User.create({ telegramId: req.params.id });
         }
-
         const now = new Date();
         const gapInSeconds = Math.floor((now - new Date(user.lastUpdate)) / 1000);
-        
         const BASE_HEAT_RATE = 100 / (4 * 3600);
         const heatPerSec = BASE_HEAT_RATE / (user.coolingPower || 1);
-
         if (gapInSeconds > 0 && user.heat < 100) {
             const currentHeat = user.heat;
             const heatNeededToMax = 100 - currentHeat;
             const secondsUntilOverheat = heatNeededToMax / heatPerSec;
             const activeMiningSeconds = Math.min(gapInSeconds, secondsUntilOverheat);
-            
             const offlineEarning = activeMiningSeconds * (user.gpus * 0.0005);
             user.mined += offlineEarning;
             user.heat = Math.min(100, currentHeat + (gapInSeconds * heatPerSec));
         }
-
         user.lastUpdate = now;
         await user.save();
         res.json(user);
@@ -116,15 +98,11 @@ app.get('/api/user/:id', async (req, res) => {
 app.post('/api/save', async (req, res) => {
     try {
         const { telegramId, newCompletedTask, ...data } = req.body;
-        
         if (!telegramId) return res.status(400).send("ID eksik");
-
         let updateQuery = { $set: { ...data, lastUpdate: new Date() } };
-        
         if (newCompletedTask) {
             updateQuery.$addToSet = { completedTasks: newCompletedTask };
         }
-
         const updatedUser = await User.findOneAndUpdate(
             { telegramId }, 
             updateQuery,
@@ -156,7 +134,6 @@ app.post('/api/withdraw', async (req, res) => {
         if (user.invitedCount < 10 || user.groupShares < 5) {
             return res.status(400).json({ success: false, message: "Tasks not completed! 10 invites and 5 shares required." });
         }
-
         user.balance = 0;
         await user.save();
         res.json({ success: true });
@@ -170,7 +147,7 @@ app.post('/api/create-stars-invoice', async (req, res) => {
         const invoiceUrl = await bot.telegram.createInvoiceLink({
             title: `GigaMine: ${title}`,
             description: `${title} Upgrade`,
-            payload: JSON.stringify({ telegramId, type, power, title }),
+            payload: JSON.stringify({ telegramId, type, power, title, starPrice }),
             provider_token: "", 
             currency: "XTR", 
             prices: [{ label: title, amount: parseInt(starPrice) }]
@@ -182,17 +159,34 @@ app.post('/api/create-stars-invoice', async (req, res) => {
 bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
 bot.on('successful_payment', async (ctx) => {
-    const payload = JSON.parse(ctx.message.successful_payment.invoice_payload);
-    const { telegramId, type, power, title } = payload;
+    const payment = ctx.message.successful_payment;
+    const payload = JSON.parse(payment.invoice_payload);
+    const { telegramId, type, power, title, starPrice } = payload;
+    const buyerUsername = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name;
+
     try {
         let user = await User.findOne({ telegramId });
         if (user) {
             if (type === 'gpu') user.gpus += power;
             else if (type === 'cool') user.coolingPower += (power * 4.0); 
             await user.save();
+            
+            // Kullanıcıya onay mesajı
             await ctx.reply(`✅ Purchase Successful! ${title} has been installed.`);
+
+            // ADMİNE (SANA) BİLDİRİM GÖNDERME
+            const adminMsg = `💰 **YENİ SATIŞ YAPILDI!**\n\n` +
+                             `👤 **Müşteri:** ${buyerUsername}\n` +
+                             `🆔 **ID:** \`${telegramId}\`\n` +
+                             `🛒 **Ürün:** ${title}\n` +
+                             `⭐ **Tutar:** ${payment.total_amount} Stars\n` +
+                             `⚙️ **Tip:** ${type} (+${power})`;
+            
+            await bot.telegram.sendMessage(ADMIN_ID, adminMsg, { parse_mode: 'Markdown' });
         }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Payment Error:", err);
+    }
 });
 
 // 4. BOT KOMUTLARI & REFERANS SİSTEMİ
@@ -226,7 +220,6 @@ bot.start(async (ctx) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// Botu hata yakalayıcı ile başlat (Conflict önlemi)
 bot.launch().then(() => console.log("GigaMinebot is Live! 🤖")).catch(err => {
     if (err.description && err.description.includes("Conflict")) {
         console.log("Bot zaten çalışıyor, polling atlanıyor...");
@@ -237,7 +230,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is active on port ${PORT}.`);
 });
 
-// Basit ping
 setInterval(() => {
     if(WEBAPP_URL) axios.get(WEBAPP_URL).catch(() => {});
 }, 600000);
