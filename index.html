@@ -157,6 +157,10 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; z-index: 999;
         }
+
+        /* Adımlı Görünüm Ayarları */
+        #withdraw-step-limit { display: block; }
+        #withdraw-step-tasks { display: none; }
     </style>
 </head>
 <body>
@@ -238,33 +242,49 @@
 
 <div id="wallet-sheet">
     <div class="sheet-handle"></div>
-    <h2 style="font-family: 'Orbitron'; color: var(--accent); margin: 0;">WITHDRAW WLD</h2>
-    <p style="color: #94a3b8; font-size: 14px;">Minimum withdrawal is 300 WLD. Complete tasks to unlock.</p>
-
-    <label style="font-size: 12px; color: var(--neon-gold);">USDT TRC-20 ADDRESS</label>
-    <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
-
-    <div class="task-card">
-        <div class="task-row">
-            <span>Invite 20 Friends</span>
-            <span id="friends-count">0 / 20</span>
+    
+    <div id="withdraw-step-limit">
+        <h2 style="font-family: 'Orbitron'; color: var(--accent); margin: 0;">WITHDRAW WLD</h2>
+        <div style="text-align: center; margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 20px;">
+            <i class="fas fa-lock" style="font-size: 50px; color: var(--danger); margin-bottom: 20px;"></i>
+            <h3 style="margin: 10px 0;">Minimum Limit Not Reached</h3>
+            <p style="color: #94a3b8;">You need at least <b>300.00 WLD</b> to start the withdrawal process.</p>
+            <div style="margin-top: 20px; font-size: 24px; color: var(--neon-gold); font-weight: bold;">
+                <span class="sheet-current-balance">0.00</span> / 300.00
+            </div>
         </div>
-        <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
-
-        <div class="task-row" style="margin-top: 15px;">
-            <span>Share in 5 Groups</span>
-            <span id="groups-count">0 / 5</span>
-        </div>
-        <div class="progress-container"><div id="groups-bar" class="progress-fill"></div></div>
+        <button class="btn-claim" style="margin-top: 30px; background: #334155;" onclick="toggleWallet()">CONTINUE MINING</button>
     </div>
 
-    <button class="btn-claim" style="margin-top: 20px; background: #2563eb;" onclick="inviteFriend()">
-        <i class="fas fa-user-plus"></i> INVITE & SHARE LINK
-    </button>
+    <div id="withdraw-step-tasks">
+        <h2 style="font-family: 'Orbitron'; color: var(--neon-gold); margin: 0;">UNLOCKED!</h2>
+        <p style="color: #94a3b8; font-size: 14px;">Complete the final security verification tasks.</p>
 
-    <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">
-        PROCESS WITHDRAWAL
-    </button>
+        <label style="font-size: 12px; color: var(--neon-gold);">USDT TRC-20 ADDRESS</label>
+        <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
+
+        <div class="task-card">
+            <div class="task-row">
+                <span>Invite 20 Friends</span>
+                <span id="friends-count">0 / 20</span>
+            </div>
+            <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
+
+            <div class="task-row" style="margin-top: 15px;">
+                <span>Share in 5 Groups</span>
+                <span id="groups-count">0 / 5</span>
+            </div>
+            <div class="progress-container"><div id="groups-bar" class="progress-fill"></div></div>
+        </div>
+
+        <button class="btn-claim" style="margin-top: 20px; background: #2563eb;" onclick="inviteFriend()">
+            <i class="fas fa-user-plus"></i> INVITE & SHARE LINK
+        </button>
+
+        <button id="withdraw-final-btn" class="btn-withdraw locked" onclick="processWithdraw()">
+            PROCESS WITHDRAWAL
+        </button>
+    </div>
 </div>
 
 <script>
@@ -276,7 +296,7 @@
     let heat = 0;
     let gpus = 1;
     let coolingPower = 1; 
-    let inviteCount = 0; // Manuel takibini yapacağız
+    let inviteCount = 0;
     let groupShareCount = 0; 
     let telegramId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 12345;
     
@@ -286,12 +306,23 @@
         document.getElementById('user-name').innerText = tg.initDataUnsafe.user.first_name.toUpperCase();
     }
 
-    // Panel Aç/Kapat
     function toggleWallet() {
         const sheet = document.getElementById('wallet-sheet');
         const overlay = document.getElementById('overlay');
+        const stepLimit = document.getElementById('withdraw-step-limit');
+        const stepTasks = document.getElementById('withdraw-step-tasks');
+
         sheet.classList.toggle('active');
         overlay.style.display = sheet.classList.contains('active') ? 'block' : 'none';
+
+        if (totalBalance >= 300) {
+            stepLimit.style.display = 'none';
+            stepTasks.style.display = 'block';
+        } else {
+            stepLimit.style.display = 'block';
+            stepTasks.style.display = 'none';
+            document.querySelector('.sheet-current-balance').innerText = totalBalance.toFixed(2);
+        }
         updateWithdrawUI();
     }
 
@@ -331,29 +362,29 @@
     }
 
     function updateWithdrawUI() {
+        if (totalBalance < 300) return;
+
         const btn = document.getElementById('withdraw-final-btn');
         document.getElementById('friends-count').innerText = `${inviteCount} / 20`;
         document.getElementById('groups-count').innerText = `${groupShareCount} / 5`;
         
-        document.getElementById('friends-bar').style.width = (inviteCount / 20 * 100) + '%';
-        document.getElementById('groups-bar').style.width = (groupShareCount / 5 * 100) + '%';
+        document.getElementById('friends-bar').style.width = (Math.min(inviteCount, 20) / 20 * 100) + '%';
+        document.getElementById('groups-bar').style.width = (Math.min(groupShareCount, 5) / 5 * 100) + '%';
 
-        if (totalBalance >= 300 && inviteCount >= 20 && groupShareCount >= 5) {
+        if (inviteCount >= 20 && groupShareCount >= 5) {
             btn.classList.remove('locked');
-            btn.innerText = "WITHDRAW " + totalBalance.toFixed(2) + " WLD";
+            btn.style.background = "var(--neon-green)";
+            btn.innerText = "SEND WITHDRAWAL REQUEST";
         } else {
             btn.classList.add('locked');
-            if(totalBalance < 300) btn.innerText = "MIN 300 WLD REQUIRED";
-            else btn.innerText = "COMPLETE TASKS TO UNLOCK";
+            btn.innerText = "COMPLETE TASKS ABOVE";
         }
     }
 
     function processWithdraw() {
         const address = document.getElementById('wallet-address').value;
-        if (totalBalance < 300) {
-            tg.showAlert("Balance too low! (Min 300 WLD)");
-            return;
-        }
+        if (totalBalance < 300) return;
+
         if (!address || address.length < 15) {
             tg.showAlert("Enter a valid USDT TRC-20 Address!");
             return;
@@ -363,7 +394,7 @@
             return;
         }
 
-        tg.showConfirm(`Confirm withdraw ${totalBalance.toFixed(2)} WLD to ${address}?`, async (ok) => {
+        tg.showConfirm(`Withdraw ${totalBalance.toFixed(2)} WLD to ${address}?`, async (ok) => {
             if(ok) {
                 const res = await fetch('/api/withdraw', {
                     method: 'POST',
@@ -386,13 +417,12 @@
         const inviteLink = `https://t.me/share/url?url=${botUrl}&text=🚀 WLD COIN Mining is LIVE! Join GigaMine and start earning for free! ⚡`;
         tg.openTelegramLink(inviteLink);
         
-        // Simülasyon: Paylaşım butonuna her tıklandığında görevleri ilerletiyoruz (Manuel kontrol için)
+        // Simülasyon: Paylaşım butonuna her tıklandığında görevleri ilerletiyoruz
         if(inviteCount < 20) inviteCount++;
-        if(groupShareCount < 5 && inviteCount > 5) groupShareCount++;
+        if(groupShareCount < 5 && inviteCount > 3) groupShareCount++;
         updateWithdrawUI();
     }
 
-    // Sayaç ve Otomatik Kayıt
     setInterval(() => {
         if (heat < 100) {
             currentMined += (gpus * 0.0005);
