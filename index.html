@@ -262,13 +262,13 @@
         <input type="text" id="wallet-address" class="withdraw-input" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxx">
 
         <div class="task-card">
-            <div class="task-row" onclick="inviteFriend()" style="cursor:pointer">
-                <span><i class="fas fa-users"></i> Invite 20 Friends</span>
-                <span id="friends-count">0 / 20</span>
+            <div class="task-row">
+                <span><i class="fas fa-users"></i> Invite 10 Friends</span>
+                <span id="friends-count">0 / 10</span>
             </div>
             <div class="progress-container"><div id="friends-bar" class="progress-fill"></div></div>
 
-            <div class="task-row" onclick="shareInGroups()" style="margin-top: 15px; cursor:pointer">
+            <div class="task-row" style="margin-top: 15px;">
                 <span><i class="fas fa-share-nodes"></i> Share in 5 Groups</span>
                 <span id="groups-count">0 / 5</span>
             </div>
@@ -276,7 +276,7 @@
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-            <button class="btn-claim" style="font-size: 12px; padding: 12px;" onclick="inviteFriend()">INVITE FRIENDS</button>
+            <button class="btn-claim" style="font-size: 12px; padding: 12px;" onclick="inviteFriend()">GET REF LINK</button>
             <button class="btn-claim" style="font-size: 12px; padding: 12px; background: #8b5cf6;" onclick="shareInGroups()">SHARE GROUPS</button>
         </div>
 
@@ -352,6 +352,7 @@
         let heatPerSec = BASE_HEAT_RATE / coolingPower; 
         let secondsToFull = (100 - heat) / heatPerSec;
         document.getElementById('time-left').innerText = formatTime(secondsToFull);
+        updateWithdrawUI();
     }
 
     function formatTime(seconds) {
@@ -363,16 +364,16 @@
     }
 
     function updateWithdrawUI() {
-        if (totalBalance < 300) return;
-
         const btn = document.getElementById('withdraw-final-btn');
-        document.getElementById('friends-count').innerText = `${inviteCount} / 20`;
+        if(!btn) return;
+
+        document.getElementById('friends-count').innerText = `${inviteCount} / 10`;
         document.getElementById('groups-count').innerText = `${groupShareCount} / 5`;
         
-        document.getElementById('friends-bar').style.width = (Math.min(inviteCount, 20) / 20 * 100) + '%';
+        document.getElementById('friends-bar').style.width = (Math.min(inviteCount, 10) / 10 * 100) + '%';
         document.getElementById('groups-bar').style.width = (Math.min(groupShareCount, 5) / 5 * 100) + '%';
 
-        if (inviteCount >= 20 && groupShareCount >= 5) {
+        if (inviteCount >= 10 && groupShareCount >= 5) {
             btn.classList.remove('locked');
             btn.style.background = "var(--neon-green)";
             btn.innerText = "SEND WITHDRAWAL REQUEST";
@@ -382,34 +383,30 @@
         }
     }
 
-    // DAVET ETME FONKSİYONU - Çoklu seçim simülasyonu
+    // DAVET ETME - REFERANS LİNKİ
     function inviteFriend() {
-        const botUrl = "https://t.me/GigaMinebot"; 
-        const text = "🚀 WLD COIN Mining is LIVE! Join GigaMine and start earning for free! ⚡";
+        const botUsername = "GigaMinebot";
+        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
+        const text = "🚀 Join GigaMine! Mine WLD for free and withdraw to your wallet! ⚡";
         
-        // Telegram paylaşma penceresini açar
-        tg.openTelegramLink(`https://t.me/share/url?url=${botUrl}&text=${encodeURIComponent(text)}`);
-        
-        // Simülasyon: Paylaşım penceresinden döndüğünde (3 saniye sonra) 
-        // Kullanıcının birkaç kişiye gönderdiğini varsayarak sayacı artırırız.
-        setTimeout(() => {
-            const added = Math.floor(Math.random() * 3) + 1; // 1 ile 3 arası rastgele artış
-            inviteCount = Math.min(20, inviteCount + added);
-            updateWithdrawUI();
-            saveUserData();
-        }, 3000);
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent(text)}`);
+        tg.showAlert("Share your personal link! Your progress updates when friends join.");
     }
 
-    // GRUP PAYLAŞIMI FONKSİYONU
+    // GRUP PAYLAŞIMI - ONAYLI SİSTEM
     function shareInGroups() {
-        const botUrl = "https://t.me/GigaMinebot";
-        // Direkt grup seçme ekranını tetikleyen link formatı
-        tg.openTelegramLink(`https://t.me/share/url?url=${botUrl}&text=Check out this mining bot!`);
+        const botUsername = "GigaMinebot";
+        const botRefLink = `https://t.me/${botUsername}?start=${telegramId}`;
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=Check this group mining!`);
         
         setTimeout(() => {
-            if(groupShareCount < 5) groupShareCount++;
-            updateWithdrawUI();
-            saveUserData();
+            tg.showConfirm("Did you share the link in a group?", (confirm) => {
+                if(confirm) {
+                    if(groupShareCount < 5) groupShareCount++;
+                    updateWithdrawUI();
+                    saveUserData();
+                }
+            });
         }, 3000);
     }
 
@@ -421,8 +418,8 @@
             tg.showAlert("Enter a valid USDT TRC-20 Address!");
             return;
         }
-        if (inviteCount < 20 || groupShareCount < 5) {
-            tg.showAlert("You must complete the social tasks first!");
+        if (inviteCount < 10 || groupShareCount < 5) {
+            tg.showAlert("Complete tasks first!");
             return;
         }
 
@@ -435,10 +432,8 @@
                 });
                 const data = await res.json();
                 if(data.success) {
-                    tg.showAlert("Withdrawal request sent! It will be processed after verification.");
+                    tg.showAlert("Request sent! Verification takes 24-48h.");
                     totalBalance = 0;
-                    inviteCount = 0; // İsteğe bağlı sıfırlama
-                    groupShareCount = 0;
                     updateUI();
                     toggleWallet();
                 }
@@ -477,21 +472,15 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    telegramId, 
-                    balance: totalBalance, 
-                    gpus, 
-                    heat, 
-                    mined: currentMined, 
-                    coolingPower,
-                    inviteCount: inviteCount,
-                    groupShareCount: groupShareCount
+                    telegramId, balance: totalBalance, gpus, heat, mined: currentMined, 
+                    coolingPower, inviteCount: inviteCount, groupShareCount: groupShareCount
                 })
             });
         } catch (err) { console.error("Save error:", err); }
     }
 
     async function buyItem(type, power, starPrice, title) {
-        tg.showConfirm(`${title} (⭐ ${starPrice}) satın alınsın mı?`, async (confirmed) => {
+        tg.showConfirm(`${title} (⭐ ${starPrice})?`, async (confirmed) => {
             if(confirmed) {
                 const res = await fetch('/api/create-stars-invoice', {
                     method: 'POST',
@@ -502,7 +491,7 @@
                 if (data.invoiceUrl) {
                     tg.openInvoice(data.invoiceUrl, (status) => {
                         if (status === 'paid') {
-                            tg.showAlert("Purchase Successful!");
+                            tg.showAlert("Paid!");
                             setTimeout(loadUserData, 1500);
                         }
                     });
