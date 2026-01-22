@@ -209,7 +209,7 @@ bot.start(async (ctx) => {
         }
 
         const botRefLink = `https://t.me/GigaMinebot?start=${telegramId}`;
-        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔗 Your Referral Link:\n${botRefLink}\n\n🔥 Collect 300 WLD and invite 10 friends to withdraw!\n🎁 Reward: +40 WLD for each invite!`, 
+        ctx.reply(`🚀 Welcome to GigaMine, ${ctx.from.first_name}!\n\nYour GPUs keep mining WLD COIN even when you're away.\n\n🔗 Your Referral Link:\n${botRefLink}\n\n`, 
             Markup.inlineKeyboard([
                 [Markup.button.webApp('🎮 Start Mining', WEBAPP_URL)],
                 [Markup.button.url('📢 Invite Friends', `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent("Join GigaMine and mine WLD for free! ⚡")}`)]
@@ -233,3 +233,4 @@ app.listen(PORT, '0.0.0.0', () => {
 setInterval(() => {
     if(WEBAPP_URL) axios.get(WEBAPP_URL).catch(() => {});
 }, 600000);
+
